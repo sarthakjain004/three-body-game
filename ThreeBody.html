@@ -6434,7 +6434,7 @@ var TB = globalThis.TB = globalThis.TB || {};
   // (persisted), teaching the core loop during a new player's first run.
   // ----------------------------------------------------------
   const TIP_KEY = 'threebody.tips';
-  let coachShowing = null, coachUntil = 0;
+  let coachShowing = null, coachUntil = 0, coachPaused = false;
   function tipsSeen() {
     try { return new Set((localStorage.getItem(TIP_KEY) || '').split(',').filter(Boolean)); }
     catch (e) { return new Set(); }
@@ -6442,12 +6442,21 @@ var TB = globalThis.TB = globalThis.TB || {};
   function markTip(id) {
     try { const s = tipsSeen(); s.add(id); localStorage.setItem(TIP_KEY, [...s].join(',')); } catch (e) {}
   }
-  function hideCoach() { coachShowing = null; coachUntil = 0; if (el.coach) el.coach.className = ''; }
+  function hideCoach() {
+    coachShowing = null; coachUntil = 0;
+    if (coachPaused && TB.app && TB.app.resumeFromOverlay) TB.app.resumeFromOverlay();
+    coachPaused = false;
+    if (el.coach) el.coach.className = '';
+  }
   function showCoach(id, html, ms, nowMs) {
     markTip(id); coachShowing = id;
     el.coach.innerHTML = '<span class="coach-x">✕</span>' + html;
     el.coach.className = 'show';
-    coachUntil = nowMs + (ms || 12000);
+    // Auto-pause the simulation while a coach prompt is on screen, so game
+    // days don't tick past unnoticed. It resumes the moment the player acts
+    // on the tip or dismisses it (✕ / click / acting on the lesson).
+    coachUntil = Infinity;
+    if (!coachPaused && TB.app && TB.app.pauseForOverlay) { TB.app.pauseForOverlay(); coachPaused = true; }
   }
 
   function updateTutorial(state, nowMs) {
@@ -6458,6 +6467,8 @@ var TB = globalThis.TB = globalThis.TB || {};
     if (coachShowing === 't-dehydrate' && civ.order === 'dehydrate') hideCoach();
     if (coachShowing === 't-rehydrate' && civ.order === 'rehydrate') hideCoach();
     if (coachShowing === 't-calendar' && state.calendar) hideCoach();
+    // Never leave a paused coach prompt up if the run ends or the seed goes dormant.
+    if (coachShowing && (state.over || !civ.alive || civ.dormant)) hideCoach();
     if (overlayOpen || state.over || !civ.alive || civ.dormant || coachShowing) return;
 
     const seen = tipsSeen();
