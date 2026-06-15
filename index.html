@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>三体 — THREE BODY</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<canvas id="world"></canvas>
+
+<div id="hud">
+  <div id="topbar">
+    <div class="hud-block" id="hud-civ"></div>
+    <div class="hud-block" id="hud-era"></div>
+    <div class="hud-block" id="hud-date"></div>
+    <div class="hud-block" id="hud-temp"></div>
+    <div class="hud-block" id="hud-pop"></div>
+    <div class="hud-block" id="hud-water"></div>
+    <div class="hud-block" id="hud-grain"></div>
+    <div class="hud-block" id="hud-age"></div>
+    <div class="hud-block" id="hud-trust"></div>
+    <div class="hud-block" id="hud-worlds"></div>
+    <div id="time-controls">
+      <button id="spd-0" title="Pause (Space)">⏸</button>
+      <button id="spd-1" title="2 days/s (1)">▶</button>
+      <button id="spd-2" class="active" title="10 days/s (2)">»</button>
+      <button id="spd-3" title="60 days/s (3)">»»</button>
+      <button id="spd-4" title="1 year/s (4)">⏩</button>
+    </div>
+  </div>
+
+  <div id="fleetbar"></div>
+  <div id="advisory"></div>
+  <div id="banner"></div>
+  <div id="log"></div>
+  <div id="proc-status"></div>
+  <div id="coach"></div>
+
+  <div id="actionbar">
+    <span id="frac-group" title="How much of the populace your next Dehydrate / Rehydrate order affects">
+      <span class="frac-label">Order</span>
+      <button class="frac active" data-f="1">All</button>
+      <button class="frac" data-f="0.75">¾</button>
+      <button class="frac" data-f="0.5">½</button>
+      <button class="frac" data-f="0.34">⅓</button>
+    </span>
+    <button id="btn-dehydrate">Dehydrate<kbd>D</kbd></button>
+    <button id="btn-rehydrate">Rehydrate<kbd>R</kbd></button>
+    <button id="btn-hold">Rescind<kbd>X</kbd></button>
+    <button id="btn-proclaim">Calendar<kbd>P</kbd></button>
+    <button id="btn-observatory">Observatory<kbd>O</kbd></button>
+    <button id="btn-orbit">Orbit Map<kbd>M</kbd></button>
+    <button id="btn-computer">Computer<kbd>C</kbd></button>
+    <button id="btn-codex">Records<kbd>L</kbd></button>
+    <button id="btn-doctrine">Doctrines<kbd>V</kbd></button>
+    <button id="btn-auto">Auto-Protocol<kbd>A</kbd></button>
+    <button id="btn-fleet" class="hidden">BUILD THE FLEET</button>
+    <button id="btn-help">Help<kbd>H</kbd></button>
+    <button id="btn-sound">♪ on</button>
+  </div>
+</div>
+
+<div id="panel">
+  <div id="panel-tabs">
+    <button id="tab-obs" class="active">Observatory</button>
+    <button id="tab-orbit">Orbit Map</button>
+    <button id="tab-comp">Computer</button>
+    <button id="tab-codex">Records</button>
+    <button id="panel-close">✕</button>
+  </div>
+  <div id="panel-body"><canvas id="panel-canvas"></canvas><div id="codex"></div></div>
+  <div id="panel-controls"></div>
+</div>
+
+<div id="overlay"></div>
+
+<div id="title">
+  <div class="zh">三体</div>
+  <div class="en">THREE BODY</div>
+  <div class="sub">The game from inside the novel. A real three-sun system, truly simulated —
+    its Stable and Chaotic Eras emerge from gravity alone. Guide a civilization through
+    dehydration and rebirth, decode the sky, and when the truth is finally known… leave.</div>
+  <button id="t-continue">CONTINUE — log back in</button>
+  <button id="t-new">NEW GAME — a vetted star system</button>
+  <button id="t-wild">WILD SYSTEM — pure random, no guarantees</button>
+  <div class="foot">A fan tribute to Liu Cixin's «The Three-Body Problem».<br>
+    Physics: three-sun N-body, symplectic integration. Everything else follows from it.</div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/climate.js"></script>
+<script src="js/civ.js"></script>
+<script src="js/predict.js"></script>
+<script src="js/story.js"></script>
+<script src="js/game.js"></script>
+<script src="js/seeds.js"></script>
+<script src="js/validate.js"></script>
+<script src="js/render.js"></script>
+<script src="lib/three.min.js"></script>
+<script src="js/render3d.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/portraits.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

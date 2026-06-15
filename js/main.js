@@ -1,0 +1,173 @@
+/* ============================================================
+ * THREE BODY — main.js
+ * Boot, title screen, the master loop, time control, save/load.
+ * Browser only.
+ * ============================================================ */
+'use strict';
+var TB = globalThis.TB = globalThis.TB || {};
+
+(function () {
+  const SAVE_KEY = 'threebody.save.v1';
+  const SPEEDS = [0, 2, 10, 60, 365];      // days of game time per real second
+  const CHUNK = 0.5;                        // days per tick
+  const MAX_DAYS_PER_FRAME = 12;
+
+  const app = {
+    state: null,
+    speedIdx: 2,
+    lastSpeedIdx: 2,
+    overlayPause: 0,
+    setSpeed, pauseForOverlay, resumeFromOverlay,
+    newGame, wildGame, continueGame, sandboxContinue, showTitle,
+  };
+  TB.app = app;
+
+  let lastMs = 0, acc = 0, saveTimer = 0;
+
+  // ----------------------------------------------------------
+  function setSpeed(i) {
+    if (i < 0 || i >= SPEEDS.length) return;
+    if (app.speedIdx > 0) app.lastSpeedIdx = app.speedIdx;
+    app.speedIdx = i;
+    for (let k = 0; k < SPEEDS.length; k++) {
+      const b = document.getElementById('spd-' + k);
+      if (b) b.classList.toggle('active', k === i);
+    }
+  }
+  function pauseForOverlay() { app.overlayPause++; }
+  function resumeFromOverlay() { app.overlayPause = Math.max(0, app.overlayPause - 1); }
+
+  // ----------------------------------------------------------
+  function newGame() {
+    const seeds = (TB.SEEDS && TB.SEEDS.length) ? TB.SEEDS : null;
+    const seed = seeds
+      ? seeds[Math.floor(Math.random() * seeds.length)]
+      : (Math.random() * 0xFFFFFFFF) >>> 0;
+    startWith(TB.game.createGame(seed));
+  }
+  function wildGame() {
+    startWith(TB.game.createGame((Math.random() * 0xFFFFFFFF) >>> 0));
+  }
+  function continueGame() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return newGame();
+      startWith(TB.game.load(JSON.parse(raw)));
+      TB.game.addLog(app.state, 'You have logged back in to Three Body.', 'sys');
+    } catch (e) {
+      console.warn('Save corrupted, starting fresh.', e);
+      newGame();
+    }
+  }
+  function startWith(state) {
+    app.state = state;
+    TB.charts.resetTrail();
+    if (TB.render.setBiome) TB.render.setBiome(12 - state.planetsLeft);  // this world's face
+    document.getElementById('title').classList.add('hidden');
+    document.getElementById('hud').style.display = '';
+    setSpeed(2);
+    TB.audio.init();
+  }
+  function sandboxContinue() {
+    if (app.state) app.state.over = false;
+  }
+  function showTitle() {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+    app.state = null;
+    refreshTitleButtons();
+    document.getElementById('title').classList.remove('hidden');
+    document.getElementById('hud').style.display = 'none';
+  }
+
+  function saveNow() {
+    if (!app.state || app.state.over) return;
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(TB.game.save(app.state))); }
+    catch (e) { /* storage full or blocked — play on */ }
+  }
+
+  function refreshTitleButtons() {
+    let has = false;
+    try { has = !!localStorage.getItem(SAVE_KEY); } catch (e) {}
+    document.getElementById('t-continue').style.display = has ? 'block' : 'none';
+  }
+
+  // ----------------------------------------------------------
+  // Master loop
+  // ----------------------------------------------------------
+  function frame(nowMs) {
+    requestAnimationFrame(frame);
+    const dtMs = Math.min(100, nowMs - lastMs || 16);
+    lastMs = nowMs;
+    const st = app.state;
+    if (!st) { TB.render.titleDemo(nowMs); return; }   // three-body dance behind the title
+
+    // Simulate.
+    const running = app.overlayPause === 0 && app.speedIdx > 0 && !st.over;
+    if (running) {
+      acc += (dtMs / 1000) * SPEEDS[app.speedIdx];
+      if (acc > MAX_DAYS_PER_FRAME) acc = MAX_DAYS_PER_FRAME;
+      while (acc >= CHUNK) {
+        TB.game.tick(st, CHUNK);
+        acc -= CHUNK;
+        if (st.pending.length) break;   // surface events immediately
+      }
+      TB.charts.sampleTrail(st);
+    }
+
+    // Present.
+    TB.ui.handlePending(st);
+    TB.render.render(st, nowMs);
+    TB.ui.update(st, nowMs);
+    TB.audio.update(st);
+
+    // Autosave once a minute.
+    saveTimer += dtMs;
+    if (saveTimer > 60000) { saveTimer = 0; saveNow(); }
+  }
+
+  // ----------------------------------------------------------
+  function boot() {
+    TB.render.init(document.getElementById('world'));
+    TB.ui.init();
+
+    document.getElementById('t-continue').onclick = continueGame;
+    document.getElementById('t-new').onclick = newGame;
+    document.getElementById('t-wild').onclick = wildGame;
+    refreshTitleButtons();
+    document.getElementById('hud').style.display = 'none';   // hidden behind the title
+
+    // Dev/testing flags: ThreeBody.html#autostart[,skipintro][,seed=NNN]
+    const hash = (typeof location !== 'undefined' && location.hash) || '';
+    if (hash.includes('autostart')) {
+      const m = hash.match(/seed=(\d+)/);
+      startWith(TB.game.createGame(m ? +m[1] : (TB.SEEDS && TB.SEEDS.length
+        ? TB.SEEDS[Math.floor(Math.random() * TB.SEEDS.length)]
+        : (Math.random() * 0xFFFFFFFF) >>> 0)));
+      if (hash.includes('skipintro')) {
+        app.state.pending.length = 0;
+        for (const k in TB.story.NOTICES) app.state.story.seenNotices[k] = true;
+      }
+      const bm = hash.match(/biome=(\d+)/);
+      if (bm && TB.render.setBiome) TB.render.setBiome(+bm[1]);   // dev: preview a biome
+    }
+
+    try {
+      if (localStorage.getItem('threebody.muted') === '1') TB.audio.setMuted(true);
+    } catch (e) {}
+    document.getElementById('btn-sound').textContent = TB.audio.isMuted() ? '♪ off' : '♪ on';
+    // Audio requires a user gesture — and may be re-suspended later, so
+    // every pointerdown routes through init() (idempotent, resumes).
+    window.addEventListener('pointerdown', () => TB.audio.init());
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') saveNow();
+    });
+    window.addEventListener('beforeunload', saveNow);
+
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else boot();
+})();
