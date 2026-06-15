@@ -9,6 +9,7 @@
     "verify:quick": "node tools/verify.js quick",
     "smoke": "node tools/smoke.js",
     "bundle": "node tools/bundle.js",
+    "screenshots": "node tools/screenshots.js",
     "sweep": "node tools/harness.js sweep 24 1500",
     "vet": "node tools/harness.js vet 200 1600"
   },

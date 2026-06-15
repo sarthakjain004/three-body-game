@@ -22,13 +22,16 @@ flying stars, tri-solar days, syzygies and engulfments all *emerge* from the orb
 
 ## Screenshots
 
-<!-- Capture real gameplay and drop the files into docs/media/ (see docs/media/README.md). -->
+<p align="center">
+  <img src="docs/media/orbit-map.png" width="900" alt="The Orbit Map — the true three-sun configuration with the planet's chaotic traced orbit"><br>
+  <em>The Orbit Map — “three suns, one world, no solution.” The planet's chaotic path, traced.</em>
+</p>
 
-![Three Body — gameplay](docs/media/cover.png)
+| Stable Era — the sky is kind | Killing Heat (+221 °C) | Killing Cold (−79 °C) | Read the sky |
+|:---:|:---:|:---:|:---:|
+| ![Stable Era](docs/media/stable.png) | ![Killing heat](docs/media/heat.png) | ![Deep freeze](docs/media/cold.png) | ![Observatory charts](docs/media/observatory.png) |
 
-| Chaotic Era → rebirth | Orbit Map & chaos horizon | Stable Era HUD |
-|---|---|---|
-| ![gameplay](docs/media/gameplay.gif) | ![orbit map](docs/media/orbit-map.png) | ![stable era](docs/media/eras.png) |
+*Every frame is real gameplay — the eras, weather, and disasters emerge from the orbital simulation; nothing is staged.*
 
 ## Play
 
