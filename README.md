@@ -1,5 +1,14 @@
 # 三体 — THREE BODY
 
+[![CI](https://github.com/sarthakjain004/three-body-game/actions/workflows/ci.yml/badge.svg)](https://github.com/sarthakjain004/three-body-game/actions/workflows/ci.yml)
+[![Play live](https://img.shields.io/badge/play-live-22c55e)](https://sarthakjain004.github.io/three-body-game/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+![No build step](https://img.shields.io/badge/build-none%20·%20vanilla%20JS-lightgrey)
+
+### ▶ Play it now: **[sarthakjain004.github.io/three-body-game](https://sarthakjain004.github.io/three-body-game/)**
+
+> No install, no sign-up, works offline. Desktop browser recommended.
+
 **The game from inside the novel.** In Liu Cixin's *The Three-Body Problem*, players
 of a mysterious VR game called «Three Body» wander a world where the sun keeps no
 schedule — where civilizations are scorched, frozen, and torn apart in endless
@@ -10,6 +19,16 @@ This is that game, playable. **The physics is real**: three suns evolved as a tr
 gravitational N-body system (4th-order symplectic integrator, energy drift < 10⁻⁶
 per millennium). Nothing about the climate is scripted — Stable Eras, Chaotic Eras,
 flying stars, tri-solar days, syzygies and engulfments all *emerge* from the orbits.
+
+## Screenshots
+
+<!-- Capture real gameplay and drop the files into docs/media/ (see docs/media/README.md). -->
+
+![Three Body — gameplay](docs/media/cover.png)
+
+| Chaotic Era → rebirth | Orbit Map & chaos horizon | Stable Era HUD |
+|---|---|---|
+| ![gameplay](docs/media/gameplay.gif) | ![orbit map](docs/media/orbit-map.png) | ![stable era](docs/media/eras.png) |
 
 ## Play
 
@@ -83,6 +102,36 @@ node tools/verify.js [quick]            # verifiability gates: static/data, stat
                                         #   save-load round-trip, story coverage
 node tools/bundle.js                    # build single-file ThreeBody.html
 ```
+
+## Architecture
+
+No framework, no build step, no runtime dependencies — vanilla ES, with Three.js
+the only vendored library. The simulation is decoupled from rendering: the exact
+same state can be drawn by the WebGL or the 2D renderer, and run headless in Node.
+
+```
+js/physics.js     three-sun N-body integrator (adaptive Yoshida-4 symplectic)
+js/climate.js     blackbody surface temperature + Stable/Chaotic era classifier
+js/civ.js         population / water / grain / doctrine economy
+js/predict.js     ensemble forecasting and the emergent "chaos horizon"
+js/game.js        core state machine and simulation loop (headless-safe)
+js/story.js       narrative beats keyed off emergent climate events
+js/seeds.js       star systems vetted by the bot to be survivable & winnable
+js/validate.js    runtime state invariants
+js/render.js      2D cinematic renderer  ·  render3d.js  Three.js renderer
+js/ui.js charts.js portraits.js audio.js main.js   presentation layer
+tools/            Node CLI: harness (bot-play), smoke, verify (gates), bundle
+```
+
+**Engineering highlights**
+- A real 4th-order symplectic integrator with adaptive timestep keeps energy
+  drift below 10⁻² over a full run — verified every CI build.
+- Gameplay (eras, weather, disasters) is *emergent* from the orbital dynamics,
+  not scripted — the same code runs in the browser and headless in Node.
+- A self-testing pipeline: `verify.js` enforces six gates (state invariants,
+  energy conservation, determinism, save/load round-trip, story coverage),
+  `smoke.js` runs the full stack against a stubbed DOM, and CI fails the build
+  if the single-file bundle drifts from source.
 
 ---
 *A fan tribute to Liu Cixin's «The Three-Body Problem» (三体). Not affiliated.

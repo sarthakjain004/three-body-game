@@ -1,0 +1,41 @@
+{
+  "name": "three-body-game",
+  "version": "1.0.0",
+  "description": "A browser game built on a real three-sun gravitational N-body simulation. Stable and Chaotic Eras emerge from gravity alone. A fan tribute to Liu Cixin's «The Three-Body Problem».",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node tools/verify.js && node tools/smoke.js",
+    "verify": "node tools/verify.js",
+    "verify:quick": "node tools/verify.js quick",
+    "smoke": "node tools/smoke.js",
+    "bundle": "node tools/bundle.js",
+    "sweep": "node tools/harness.js sweep 24 1500",
+    "vet": "node tools/harness.js vet 200 1600"
+  },
+  "keywords": [
+    "game",
+    "simulation",
+    "n-body",
+    "physics",
+    "three-body-problem",
+    "webgl",
+    "threejs",
+    "symplectic-integrator",
+    "orbital-mechanics",
+    "javascript"
+  ],
+  "author": "Sarthak Jain",
+  "license": "MIT",
+  "homepage": "https://sarthakjain004.github.io/three-body-game/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sarthakjain004/three-body-game.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sarthakjain004/three-body-game/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "private": false
+}

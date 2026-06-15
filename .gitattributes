@@ -1,0 +1,15 @@
+# Normalize all text files to LF in the repo so the single-file bundle is
+# byte-reproducible across Windows/macOS/Linux (the CI build runs on Linux).
+* text=auto eol=lf
+
+# Treat binary assets as binary (no EOL conversion).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.mp3 binary
+*.wav binary
+*.woff binary
+*.woff2 binary
