@@ -107,22 +107,9 @@
     Physics: three-sun N-body, symplectic integration. Everything else follows from it.</div>
 </div>
 
-<script src="js/util.js"></script>
-<script src="js/physics.js"></script>
-<script src="js/climate.js"></script>
-<script src="js/civ.js"></script>
-<script src="js/predict.js"></script>
-<script src="js/story.js"></script>
-<script src="js/game.js"></script>
-<script src="js/seeds.js"></script>
-<script src="js/validate.js"></script>
-<script src="js/render.js"></script>
+<!-- THREE.js is a vendored global, loaded before the app bundle. -->
 <script src="lib/three.min.js"></script>
-<script src="js/render3d.js"></script>
-<script src="js/charts.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/portraits.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/main.js"></script>
+<!-- The app: src/*.ts bundled by esbuild (npm run build). -->
+<script src="dist/three-body.js"></script>
 </body>
 </html>

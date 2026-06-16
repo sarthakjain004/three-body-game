@@ -1,10 +1,10 @@
 /* ============================================================
- * THREE BODY — tools/smoke.js  (Node only)
+ * THREE BODY — tools/smoke.mts  (Node only)
  * Headless smoke test: stubs the DOM/canvas, loads the FULL
  * browser stack (render/charts/audio/ui/main), boots a game and
  * pumps thousands of frames at max speed, auto-clicking through
  * overlays. Any uncaught exception or non-finite state fails.
- *   node tools/smoke.js [seed] [frames]
+ *   tsx tools/smoke.mts [seed] [frames]
  * ============================================================ */
 'use strict';
 
@@ -87,15 +87,16 @@ global.localStorage = {
 global.performance = { now: () => nowMs };
 globalThis.__TB_NOTYPE__ = true;   // headless: fill dialog text instantly, no timers
 
-// ---------- Load the full stack ----------
-const path = require('path');
-const J = (f) => path.join(__dirname, '..', 'js', f);
-for (const f of ['util.js', 'physics.js', 'climate.js', 'civ.js', 'predict.js',
-                 'story.js', 'game.js', 'seeds.js', 'validate.js', 'render.js',
-                 'charts.js', 'audio.js', 'portraits.js', 'ui.js', 'main.js']) {
-  require(J(f));
-}
-const TB = globalThis.TB;
+// ---------- Load the full stack (ESM) ----------
+// The DOM stubs above MUST be in place before importing the browser modules,
+// so these are dynamic imports (not hoisted). Importing main runs boot(),
+// which wires the UI and queues the first animation frame.
+await import('../src/main');
+const { app } = await import('../src/app');
+const game: any = await import('../src/game');
+const charts: any = await import('../src/charts');
+const civ: any = await import('../src/civ');
+const TB: any = { app, game, charts, civ };
 
 // ---------- Run ----------
 const seed = process.argv[2] ? +process.argv[2] : 4242;

@@ -1,17 +1,22 @@
 /* ============================================================
- * THREE BODY — ui.js
+ * THREE BODY — ui.ts
  * HUD, action bar, panels, overlays, banners, input.
- * Reads/writes the running game via TB.app (set by main.js).
+ * Reads/writes the running game via app (set by main.js).
  * Browser only.
  * ============================================================ */
-'use strict';
-var TB = globalThis.TB = globalThis.TB || {};
+import * as U from './util';
+import * as C from './climate';
+import * as V from './civ';
+import * as G from './game';
+import * as Audio from './audio';
+import * as Charts from './charts';
+import * as Portraits from './portraits';
+import * as Story from './story';
+import { app } from './app';
+import { render } from './renderer';
 
-(function () {
-  const U = TB.util, C = TB.climate, V = TB.civ, G = TB.game;
-
-  const $ = (id) => document.getElementById(id);
-  let el = {};
+  const $ = (id: string): any => document.getElementById(id);
+  let el: any = {};
   let bannerQueue = [], bannerUntil = 0;
   let overlayQueue = [], overlayOpen = false;
   let lastLogStamp = '';
@@ -41,12 +46,12 @@ var TB = globalThis.TB = globalThis.TB || {};
     pcv = $('panel-canvas'); pctx = pcv.getContext('2d');
 
     // Action bar.
-    el.btnDe.onclick = () => G.cmdDehydrate(TB.app.state, orderFrac);
-    el.btnRe.onclick = () => G.cmdRehydrate(TB.app.state, orderFrac);
-    el.btnHold.onclick = () => G.cmdHoldOrder(TB.app.state);
+    el.btnDe.onclick = () => G.cmdDehydrate(app.state, orderFrac);
+    el.btnRe.onclick = () => G.cmdRehydrate(app.state, orderFrac);
+    el.btnHold.onclick = () => G.cmdHoldOrder(app.state);
 
     // Order-fraction selector.
-    document.querySelectorAll('#frac-group .frac').forEach(b => {
+    document.querySelectorAll('#frac-group .frac').forEach((b: any) => {
       b.onclick = () => {
         orderFrac = parseFloat(b.dataset.f);
         document.querySelectorAll('#frac-group .frac').forEach(x =>
@@ -55,17 +60,17 @@ var TB = globalThis.TB = globalThis.TB || {};
     });
     el.btnProc.onclick = () => openProclaim();
     el.btnObs.onclick = () => togglePanel('obs');
-    el.btnOrbit.onclick = () => { if (TB.app.state.flags.orbit) togglePanel('orbit'); };
-    el.btnComp.onclick = () => { if (TB.app.state.flags.computer) togglePanel('comp'); };
+    el.btnOrbit.onclick = () => { if (app.state.flags.orbit) togglePanel('orbit'); };
+    el.btnComp.onclick = () => { if (app.state.flags.computer) togglePanel('comp'); };
     el.btnCodex.onclick = () => togglePanel('codex');
     el.btnDoctrine.onclick = () => openDoctrines();
-    el.btnAuto.onclick = () => G.cmdToggleAuto(TB.app.state);
-    el.btnFleet.onclick = () => G.cmdFleet(TB.app.state);
+    el.btnAuto.onclick = () => G.cmdToggleAuto(app.state);
+    el.btnFleet.onclick = () => G.cmdFleet(app.state);
     el.btnHelp.onclick = () => openHelp();
     el.btnSound.onclick = () => {
-      TB.audio.setMuted(!TB.audio.isMuted());
-      el.btnSound.textContent = TB.audio.isMuted() ? '♪ off' : '♪ on';
-      try { localStorage.setItem('threebody.muted', TB.audio.isMuted() ? '1' : ''); } catch (e) {}
+      Audio.setMuted(!Audio.isMuted());
+      el.btnSound.textContent = Audio.isMuted() ? '♪ off' : '♪ on';
+      try { localStorage.setItem('threebody.muted', Audio.isMuted() ? '1' : ''); } catch (e) {}
     };
 
     // Panel tabs.
@@ -79,7 +84,7 @@ var TB = globalThis.TB = globalThis.TB || {};
     // Time controls.
     for (let i = 0; i <= 4; i++) {
       const b = $('spd-' + i);
-      if (b) b.onclick = () => TB.app.setSpeed(i);
+      if (b) b.onclick = () => app.setSpeed(i);
     }
 
     // Keyboard.
@@ -92,11 +97,11 @@ var TB = globalThis.TB = globalThis.TB || {};
         }
         return;
       }
-      const st = TB.app.state;
+      const st = app.state;
       if (!st) return;   // title screen: no game to command
       switch (e.key.toLowerCase()) {
-        case ' ': TB.app.setSpeed(TB.app.speedIdx === 0 ? TB.app.lastSpeedIdx || 1 : 0); e.preventDefault(); break;
-        case '1': case '2': case '3': case '4': TB.app.setSpeed(+e.key); break;
+        case ' ': app.setSpeed(app.speedIdx === 0 ? app.lastSpeedIdx || 1 : 0); e.preventDefault(); break;
+        case '1': case '2': case '3': case '4': app.setSpeed(+e.key); break;
         case 'd': G.cmdDehydrate(st, orderFrac); break;
         case 'r': G.cmdRehydrate(st, orderFrac); break;
         case 'x': G.cmdHoldOrder(st); break;
@@ -169,7 +174,7 @@ var TB = globalThis.TB = globalThis.TB || {};
   }
   function hideCoach() {
     coachShowing = null; coachUntil = 0;
-    if (coachPaused && TB.app && TB.app.resumeFromOverlay) TB.app.resumeFromOverlay();
+    if (coachPaused && app && app.resumeFromOverlay) app.resumeFromOverlay();
     coachPaused = false;
     if (el.coach) el.coach.className = '';
   }
@@ -181,7 +186,7 @@ var TB = globalThis.TB = globalThis.TB || {};
     // days don't tick past unnoticed. It resumes the moment the player acts
     // on the tip or dismisses it (✕ / click / acting on the lesson).
     coachUntil = Infinity;
-    if (!coachPaused && TB.app && TB.app.pauseForOverlay) { TB.app.pauseForOverlay(); coachPaused = true; }
+    if (!coachPaused && app && app.pauseForOverlay) { app.pauseForOverlay(); coachPaused = true; }
   }
 
   function updateTutorial(state, nowMs) {
@@ -198,7 +203,7 @@ var TB = globalThis.TB = globalThis.TB || {};
 
     const seen = tipsSeen();
     const sust = V.sustainablePop(civ, cl), fd = V.foodDays(civ);
-    const fire = (id, cond, html, ms) => {
+    const fire = (id, cond, html, ms?) => {
       if (!seen.has(id) && cond) { showCoach(id, html, ms, nowMs); return true; }
       return false;
     };
@@ -394,14 +399,14 @@ var TB = globalThis.TB = globalThis.TB || {};
       switch (it.kind) {
         case 'banner':
           pushBanner(it.text, it.style);
-          TB.audio.sting(stingFor(it.style));
+          Audio.sting(stingFor(it.style));
           // Juice: one event, several senses.
-          if (it.style === 'syzygy') { TB.render.addShake(0.55); TB.render.flash('255,90,90', 0.16); }
-          else if (it.style === 'hot') { TB.render.addShake(0.25); TB.render.flash('255,180,100', 0.12); }
-          else if (it.style === 'cold') { TB.render.flash('150,200,255', 0.10); }
-          else if (it.style === 'bad') { TB.render.addShake(0.3); }
-          if (['hot', 'syzygy', 'cold'].includes(it.style) && TB.app.speedIdx > 2) {
-            TB.app.setSpeed(1);
+          if (it.style === 'syzygy') { render.addShake(0.55); render.flash('255,90,90', 0.16); }
+          else if (it.style === 'hot') { render.addShake(0.25); render.flash('255,180,100', 0.12); }
+          else if (it.style === 'cold') { render.flash('150,200,255', 0.10); }
+          else if (it.style === 'bad') { render.addShake(0.3); }
+          if (['hot', 'syzygy', 'cold'].includes(it.style) && app.speedIdx > 2) {
+            app.setSpeed(1);
           }
           break;
         case 'beat':
@@ -411,32 +416,32 @@ var TB = globalThis.TB = globalThis.TB || {};
           overlayQueue.push({ type: 'notice', notice: it.notice });
           break;
         case 'destroyed':
-          TB.audio.sting('death');
-          TB.render.addShake(0.45);
-          TB.render.flash('255,70,70', 0.2);
+          Audio.sting('death');
+          render.addShake(0.45);
+          render.flash('255,70,70', 0.2);
           overlayQueue.push({ type: 'destroyed', text: it.text, civNo: it.civNo });
           break;
         case 'planet-lost': {
-          TB.audio.sting('death');
-          TB.render.addShake(0.9);
-          TB.render.flash('255,255,255', 0.3);
-          TB.charts.resetTrail();   // the orbit map starts fresh on the new world
-          TB.render.reseedTerrain(it.planetsLeft);   // new world, new mountains
+          Audio.sting('death');
+          render.addShake(0.9);
+          render.flash('255,255,255', 0.3);
+          Charts.resetTrail();   // the orbit map starts fresh on the new world
+          render.reseedTerrain(it.planetsLeft);   // new world, new mountains
           let txt = it.text;
-          if (it.planetsLeft > 0 && TB.render.setBiome) {
-            const wname = TB.render.setBiome(12 - it.planetsLeft);   // new world, new face
+          if (it.planetsLeft > 0 && render.setBiome) {
+            const wname = render.setBiome(12 - it.planetsLeft);   // new world, new face
             if (wname) txt += '\n\nThe seed is carried down to a new world: ' + wname + '.';
           }
           overlayQueue.push({ type: 'planet-lost', text: txt, planetsLeft: it.planetsLeft });
           break;
         }
         case 'ending':
-          TB.audio.sting('fleet');
-          TB.render.flash('150,255,190', 0.18);
+          Audio.sting('fleet');
+          render.flash('150,255,190', 0.18);
           overlayQueue.push({ type: 'ending', ending: it.ending, stats: it.stats });
           break;
         case 'silence':
-          TB.audio.sting('death');
+          Audio.sting('death');
           overlayQueue.push({ type: 'silence', text: it.text, stats: it.stats });
           break;
       }
@@ -455,11 +460,11 @@ var TB = globalThis.TB = globalThis.TB || {};
   function showNextOverlay() {
     const item = overlayQueue.shift();
     if (!item) { closeOverlay(); return; }
-    if (!overlayOpen) TB.app.pauseForOverlay();   // one pause per open session
+    if (!overlayOpen) app.pauseForOverlay();   // one pause per open session
     overlayOpen = true;
     // A soft chime announces a story beat / notice — the "feels good" cue,
     // distinct from the harsh event stingers.
-    if (item.type === 'beat' || item.type === 'notice') TB.audio.sting('beat');
+    if (item.type === 'beat' || item.type === 'notice') Audio.sting('beat');
     if (item.type === 'beat') renderBeat(item.beat, 0);
     else if (item.type === 'notice') renderSimple(item.notice.title, item.notice.text, 'notice-d', 'Continue');
     else if (item.type === 'destroyed') renderSimple('CIVILIZATION DESTROYED', item.text, 'registrar', 'Log in again');
@@ -475,7 +480,7 @@ var TB = globalThis.TB = globalThis.TB || {};
     el.overlay.classList.remove('show');
     // Clear after the fade-out so the dialog doesn't blink away mid-transition.
     setTimeout(() => { if (!overlayOpen) el.overlay.innerHTML = ''; }, 260);
-    TB.app.resumeFromOverlay();
+    app.resumeFromOverlay();
   }
 
   function dialogShell(cls, inner) {
@@ -513,8 +518,8 @@ var TB = globalThis.TB = globalThis.TB || {};
   function finishTypingNow() { if (typer) { typer.el.textContent = typer.full; finishTyper(); } }
 
   function portraitHtml(speaker) {
-    return TB.portraits
-      ? '<div class="portrait">' + TB.portraits.svg(speaker) + '</div>'
+    return Portraits
+      ? '<div class="portrait">' + Portraits.svg(speaker) + '</div>'
       : '<div class="glyph">三</div>';
   }
 
@@ -578,14 +583,14 @@ var TB = globalThis.TB = globalThis.TB || {};
         <button id="end-watch">Keep watching the suns</button>
         <button class="primary" id="end-new">New game</button>
       </div>`);
-    $('end-watch').onclick = () => { TB.app.sandboxContinue(); closeOverlay(); };
-    $('end-new').onclick = () => { closeOverlay(); TB.app.showTitle(); };
+    $('end-watch').onclick = () => { app.sandboxContinue(); closeOverlay(); };
+    $('end-new').onclick = () => { closeOverlay(); app.showTitle(); };
   }
 
   function renderSilence(item) {
     const s = item.stats;
     dialogShell('registrar', `
-      <h2>${escapeHtml(TB.story.SILENCE.title)}</h2>
+      <h2>${escapeHtml(Story.SILENCE.title)}</h2>
       <div class="text">${escapeHtml(item.text)}</div>
       <div class="stats">
         Years beneath the three suns: <b>${s.years}</b> ·
@@ -593,17 +598,17 @@ var TB = globalThis.TB = globalThis.TB || {};
         Highest age: <b>${s.maxAge}</b>
       </div>
       <div class="btnrow"><button class="primary" id="end-new">Begin again</button></div>`);
-    $('end-new').onclick = () => { closeOverlay(); TB.app.showTitle(); };
+    $('end-new').onclick = () => { closeOverlay(); app.showTitle(); };
   }
 
   // ----------------------------------------------------------
   // Proclaim & help dialogs (user-invoked overlays)
   // ----------------------------------------------------------
   function openProclaim() {
-    const st = TB.app.state;
+    const st = app.state;
     if (!st || st.calendar || st.over || st.civ.dormant || overlayOpen) return;
     if (st.cl.eraType !== 'stable') {
-      TB.app.pauseForOverlay();
+      app.pauseForOverlay();
       overlayOpen = true;
       renderSimple('NO CALENDAR UNDER A CHAOTIC SKY', 'The sky is already chaos — there is ' +
         'nothing to predict about it. Wait for a Stable Era; then publish a calendar ' +
@@ -611,11 +616,11 @@ var TB = globalThis.TB = globalThis.TB || {};
         'notice-d', 'Understood');
       return;
     }
-    TB.app.pauseForOverlay();
+    app.pauseForOverlay();
     overlayOpen = true;
 
     // Forecast guidance from the Computer, if one has been run.
-    const fc = TB.charts.lastForecastInfo(st.day);
+    const fc = Charts.lastForecastInfo(st.day);
     let guide;
     if (!fc) {
       guide = 'No forecast stands. Run the COMPUTER [C] first to see how far the ' +
@@ -646,7 +651,7 @@ A Stable Era that holds rewards a golden age of trust and science. But if chaos 
       <div class="btnrow"><button class="primary" id="proc-cancel">Cancel</button></div>`);
     el.overlay.querySelectorAll('.choices button').forEach(b => {
       b.onclick = () => {
-        TB.game.cmdProclaim(st, b.dataset.k, +b.dataset.d);
+        G.cmdProclaim(st, b.dataset.k, +b.dataset.d);
         closeOverlay();
       };
     });
@@ -655,7 +660,7 @@ A Stable Era that holds rewards a golden age of trust and science. But if chaos 
 
   function openHelp() {
     if (overlayOpen) return;
-    TB.app.pauseForOverlay();
+    app.pauseForOverlay();
     overlayOpen = true;
     dialogShell('notice-d', `
       <h2>HOW TO SURVIVE THREE BODY</h2>
@@ -691,9 +696,9 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
   // Doctrines overlay
   // ----------------------------------------------------------
   function openDoctrines() {
-    const st = TB.app.state;
+    const st = app.state;
     if (!st || st.over || !st.civ.alive || overlayOpen) return;
-    TB.app.pauseForOverlay();
+    app.pauseForOverlay();
     overlayOpen = true;
     renderDoctrines(st);
   }
@@ -725,7 +730,7 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
     $('dx-close').onclick = closeOverlay;
   }
 
-  function togglePanel(tab, forceClose) {
+  function togglePanel(tab, forceClose?) {
     if (panelOpen && (panelTab === tab || forceClose)) {
       panelOpen = false;
       el.panel.classList.remove('open');
@@ -745,7 +750,7 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
     el.tabComp.classList.toggle('active', tab === 'comp');
     if (el.tabCodex) el.tabCodex.classList.toggle('active', tab === 'codex');
     el.panel.classList.toggle('codex-open', tab === 'codex');
-    const st = TB.app.state;
+    const st = app.state;
     el.tabOrbit.disabled = !st.flags.orbit;
     el.tabComp.disabled = !st.flags.computer;
     // Per-tab controls.
@@ -764,9 +769,9 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
     }
     el.panelControls.innerHTML = html;
     const bDiv = $('pc-div'), bMozi = $('pc-mozi'), bRun = $('pc-run');
-    if (bDiv) bDiv.onclick = () => TB.charts.rollDivination(TB.app.state);
-    if (bMozi) bMozi.onclick = () => TB.charts.runMozi(TB.app.state);
-    if (bRun) bRun.onclick = () => { if (!TB.charts.isComputing()) TB.charts.requestForecast(TB.app.state); };
+    if (bDiv) bDiv.onclick = () => Charts.rollDivination(app.state);
+    if (bMozi) bMozi.onclick = () => Charts.runMozi(app.state);
+    if (bRun) bRun.onclick = () => { if (!Charts.isComputing()) Charts.requestForecast(app.state); };
     if (tab === 'codex') renderCodex(st);
   }
 
@@ -776,9 +781,9 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
     const w = r.width, h = r.height;
     if (w < 10 || h < 10) return;
     pctx.clearRect(0, 0, w, h);
-    if (panelTab === 'obs') TB.charts.drawObservatory(pctx, state, w, h);
-    else if (panelTab === 'orbit') TB.charts.drawOrbit(pctx, state, w, h);
-    else if (panelTab === 'comp') TB.charts.drawComputer(pctx, state, w, h, nowMs);
+    if (panelTab === 'obs') Charts.drawObservatory(pctx, state, w, h);
+    else if (panelTab === 'orbit') Charts.drawOrbit(pctx, state, w, h);
+    else if (panelTab === 'comp') Charts.drawComputer(pctx, state, w, h, nowMs);
   }
 
   // ----------------------------------------------------------
@@ -795,7 +800,7 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
     codexStamp = stamp;
 
     const yrs = Math.floor(state.day / 365.25);
-    const allBeats = TB.story.BEATS.concat(Object.keys(TB.story.MOMENTS).map(k => TB.story.MOMENTS[k]));
+    const allBeats = Story.BEATS.concat(Object.keys(Story.MOMENTS).map(k => Story.MOMENTS[k]));
     const seen = allBeats.filter(b => state.story.seenBeats[b.id]);
 
     let html = '<h3>This Run</h3><div class="stat-grid">' +
@@ -819,7 +824,7 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
     if (!seen.length) html += '<div class="empty">No revelations yet. Play on.</div>';
     else html += seen.map(b =>
       '<button class="beat-btn" data-beat="' + b.id + '">' +
-      '<span class="bk">' + (TB.story.MOMENTS[b.id] ? 'moment' : 'chapter') + '</span><br>' +
+      '<span class="bk">' + (Story.MOMENTS[b.id] ? 'moment' : 'chapter') + '</span><br>' +
       escapeHtml(b.title) + '</button>').join('');
 
     html += '<h3>Chronicle</h3><div class="chron">';
@@ -840,13 +845,12 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
   // Re-open a story beat from the Codex (read-only; pauses like a normal beat).
   function openBeatForReading(id) {
     if (overlayOpen) return;
-    const beat = TB.story.BEATS.find(b => b.id === id) || (TB.story.MOMENTS || {})[id];
+    const beat = Story.BEATS.find(b => b.id === id) || (Story.MOMENTS || {})[id];
     if (!beat) return;
-    TB.app.pauseForOverlay();
+    app.pauseForOverlay();
     overlayOpen = true;
     renderBeat(beat, 0);
   }
 
-  TB.ui = { init, update, handlePending, pushBanner,
-            isOverlayOpen: () => overlayOpen };
-})();
+export const isOverlayOpen = () => overlayOpen;
+export { init, update, handlePending, pushBanner };
