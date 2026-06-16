@@ -1,15 +1,12 @@
 /* ============================================================
- * THREE BODY — civ.js
+ * THREE BODY — civ.ts
  * The Trisolaran civilization: population, hydration state,
  * technological ages, trust in the calendar, destruction and
  * rebirth, and (eventually) the Trisolaran Fleet.
  * Pure JS, no DOM.
  * ============================================================ */
-'use strict';
-var TB = globalThis.TB = globalThis.TB || {};
-
-(function () {
-  const U = TB.util;
+import * as U from './util';
+import type { Civ, Climate, Rng } from './types';
 
   // Technological ages. `cum` = cumulative science points required.
   const AGES = [
@@ -83,7 +80,7 @@ var TB = globalThis.TB = globalThis.TB || {};
   ];
 
   // Merge the multipliers/bonuses for a civilization's owned doctrines.
-  function mods(civ) {
+  function mods(civ: Civ) {
     const d = (civ && civ.doctrines) || {};
     const m = {
       forecastEps: 1, ensembleDaysMul: 1, calTrustGain: 1, calTrustPenalty: 1,
@@ -113,21 +110,21 @@ var TB = globalThis.TB = globalThis.TB || {};
   }
 
   function popCap(ageIdx)   { return 80 + ageIdx * ageIdx * 30; }   // carrying capacity (M)
-  function waterCap(civ)    { return (40 + 0.4 * popCap(civ.ageIdx)) * mods(civ).waterCapMul; }
-  function grainCap(civ)    { return (60 + 0.6 * popCap(civ.ageIdx)) * mods(civ).grainCapMul; }
-  function waterInflow(civ) { return (4 + civ.ageIdx * 2) * mods(civ).waterInflowMul; }
-  function foodProd(civ)    { return (0.14 + civ.ageIdx * 0.01) * mods(civ).foodProdMul; }
+  function waterCap(civ: Civ)    { return (40 + 0.4 * popCap(civ.ageIdx)) * mods(civ).waterCapMul; }
+  function grainCap(civ: Civ)    { return (60 + 0.6 * popCap(civ.ageIdx)) * mods(civ).grainCapMul; }
+  function waterInflow(civ: Civ) { return (4 + civ.ageIdx * 2) * mods(civ).waterInflowMul; }
+  function foodProd(civ: Civ)    { return (0.14 + civ.ageIdx * 0.01) * mods(civ).foodProdMul; }
 
   // Hydrated population the land can feed in the current era (production =
   // consumption). Production is sublinear, so a huge populace cannot all
   // stay awake — the surplus must sleep in the dehydratories.
-  function sustainablePop(civ, cl) {
+  function sustainablePop(civ: Civ, cl: Climate) {
     const stab = (cl && cl.eraType === 'stable') ? 1 : 0.35;
     const k = foodProd(civ) * stab / FOOD_PER_CAPITA;   // popH^0.3 == k at balance
     return Math.pow(Math.max(k, 0.01), 1 / 0.3);
   }
   // Days of food remaining at the current hydrated headcount.
-  function foodDays(civ) {
+  function foodDays(civ: Civ) {
     const burn = civ.popH * FOOD_PER_CAPITA;
     return burn > 1e-6 ? civ.grain / burn : Infinity;
   }
@@ -135,7 +132,7 @@ var TB = globalThis.TB = globalThis.TB || {};
   // Forward-looking deadlines for the current state (no forecast needed —
   // these are the rates already baked into update()). Returns the data the
   // HUD advisory needs plus a single prioritized `threat`.
-  function outlook(civ, cl) {
+  function outlook(civ: Civ, cl: Climate) {
     const T = cl.tempC;
     const r = {
       foodNet: 0, daysToFamine: Infinity,
@@ -242,7 +239,7 @@ var TB = globalThis.TB = globalThis.TB || {};
     };
   }
 
-  function totalPop(civ) { return civ.popH + civ.popD; }
+  function totalPop(civ: Civ) { return civ.popH + civ.popD; }
 
   /**
    * Advance the civilization by dtDays.
@@ -253,7 +250,7 @@ var TB = globalThis.TB = globalThis.TB || {};
    * @param flags  game flags: {autoUnlocked, fleetUnlocked}
    * @returns      array of events: {type:'age'|'extinct'|'fleet-done'|'order-done', ...}
    */
-  function update(civ, cl, day, dtDays, rng, flags) {
+  function update(civ: Civ, cl: Climate, day, dtDays, rng: Rng, flags) {
     const events = [];
     if (!civ.alive) return events;
     const T = cl.tempC;
@@ -429,7 +426,7 @@ var TB = globalThis.TB = globalThis.TB || {};
     return events;
   }
 
-  function dominantCause(civ) {
+  function dominantCause(civ: Civ) {
     const t = civ.tally;
     const entries = [['extreme cold', t.cold], ['blazing heat', t.heat],
                      ['the scorching of the dehydratories', t.fire],
@@ -440,7 +437,7 @@ var TB = globalThis.TB = globalThis.TB || {};
   }
 
   // Sudden mass-death from a catastrophe (syzygy quakes, etc.).
-  function applyCatastrophe(civ, frac, cause) {
+  function applyCatastrophe(civ: Civ, frac, cause) {
     if (civ.dormant) return [];   // the deep vaults ride it out
     const deadH = civ.popH * frac, deadD = civ.popD * frac;
     civ.popH -= deadH; civ.popD -= deadD;
@@ -458,7 +455,7 @@ var TB = globalThis.TB = globalThis.TB || {};
   // The seed of civilization remains: build the successor.
   // It begins DORMANT — fully dehydrated in deep vaults — and only
   // germinates when the climate allows (see update()).
-  function rebirth(civ, day, rng) {
+  function rebirth(civ: Civ, day, rng: Rng) {
     const seedPop = Math.max(0.8, totalPop(civ) + 0.8);  // survivors + buried seed vaults
     const next = createCiv(civ.no + rng.int(1, 9), {
       foundedDay: day,
@@ -474,12 +471,12 @@ var TB = globalThis.TB = globalThis.TB || {};
     return next;
   }
 
-  TB.civ = {
+  const consts = { SAFE_LO, SAFE_HI, GROW_LO, GROW_HI, REHYDRATE_LO, REHYDRATE_HI,
+              FLEET_SHIPS, EXTINCT_BELOW, SEED_RETAIN,
+              WATER_PER_CAPITA, FOOD_PER_CAPITA, WET_LO, WET_HI };
+
+  export {
     AGES, DOCTRINES, createCiv, update, applyCatastrophe, rebirth, totalPop, ageOf,
     popCap, waterCap, grainCap, sustainablePop, foodDays, outlook,
-    mods, nextTier, tierById,
-    consts: { SAFE_LO, SAFE_HI, GROW_LO, GROW_HI, REHYDRATE_LO, REHYDRATE_HI,
-              FLEET_SHIPS, EXTINCT_BELOW, SEED_RETAIN,
-              WATER_PER_CAPITA, FOOD_PER_CAPITA, WET_LO, WET_HI },
+    mods, nextTier, tierById, consts,
   };
-})();

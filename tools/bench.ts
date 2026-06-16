@@ -1,18 +1,13 @@
 /* ============================================================
- * THREE BODY — tools/bench.js  (Node only, zero-dependency)
+ * THREE BODY — tools/bench.ts  (Node only, zero-dependency)
  * Measures the simulation's headless throughput so the perf
  * claims in the README are real, reproducible numbers rather
  * than adjectives. Loads only the DOM-free logic modules.
- *   node tools/bench.js [seed]
+ *   tsx tools/bench.ts [seed]
  * ============================================================ */
-'use strict';
-const path = require('path');
-const J = (f) => path.join(__dirname, '..', 'js', f);
-for (const f of ['util.js', 'physics.js', 'climate.js', 'civ.js',
-                 'predict.js', 'story.js', 'game.js', 'seeds.js', 'validate.js']) {
-  require(J(f));
-}
-const TB = globalThis.TB;
+import * as physics from '../src/physics';
+import * as game from '../src/game';
+const TB: any = { physics, game };
 const now = () => Number(process.hrtime.bigint()) / 1e6;  // ms, monotonic
 
 const seed = process.argv[2] ? +process.argv[2] : 2007;

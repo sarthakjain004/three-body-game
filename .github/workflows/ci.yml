@@ -9,7 +9,7 @@ on:
 
 jobs:
   test:
-    name: Verifiability gates + smoke test
+    name: Typecheck + verifiability gates + smoke + build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,16 +19,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
-      # No dependencies to install — the tools are zero-dependency Node scripts.
-      - name: Verifiability gates (state invariants, energy drift, determinism, save/load)
-        run: node tools/verify.js
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (tsc --noEmit, strict module graph)
+        run: npm run typecheck
+
+      - name: Verifiability gates (invariants, energy drift, determinism, save/load, story)
+        run: npx tsx tools/verify.ts
 
       - name: Headless full-stack smoke test
-        run: node tools/smoke.js
+        run: npx tsx tools/smoke.mts
 
-      - name: Bundle is reproducible (single-file build matches committed ThreeBody.html)
+      - name: Build is reproducible (esbuild output matches committed dist/ + ThreeBody.html)
         run: |
-          node tools/bundle.js
-          git diff --exit-code -- ThreeBody.html \
-            || (echo "::error::ThreeBody.html is out of date — run 'npm run bundle' and commit the result." && exit 1)
+          npm run build
+          git diff --exit-code -- dist/three-body.js ThreeBody.html \
+            || (echo "::error::Build output is out of date — run 'npm run build' and commit dist/three-body.js + ThreeBody.html." && exit 1)

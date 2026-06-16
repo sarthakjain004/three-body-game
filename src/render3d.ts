@@ -1,5 +1,5 @@
 /* ============================================================
- * THREE BODY — render3d.js
+ * THREE BODY — render3d.ts
  * Full 3D world view (Three.js): shader sky dome, three suns as
  * lit sprites driving real directional lights and shadows, a
  * displaced terrain, the settlement growing through the ages,
@@ -10,13 +10,14 @@
  * it only if WebGL initializes — otherwise the 2D canvas renderer
  * (loaded just before this file) keeps the job.
  * ============================================================ */
-'use strict';
-var TB = globalThis.TB = globalThis.TB || {};
+import * as U from './util';
+import * as P from './physics';
+import * as C from './climate';
+import { render2d } from './render2d';
+import type { Renderer } from './types';
 
-(function () {
-  if (typeof THREE === 'undefined') return;        // library missing → keep 2D
-  const U = TB.util, P = TB.physics, C = TB.climate;
-  const render2d = TB.render;                       // fallback
+export const render: Renderer = (function build(): Renderer {
+  if (typeof THREE === 'undefined') return render2d;   // library missing → use 2D
 
   // Normalized settlement coordinate (0..1, shared with the 2D logic and
   // the crowd duty stations) → world X. The settlement spreads along +Z.
@@ -592,7 +593,7 @@ var TB = globalThis.TB = globalThis.TB || {};
   // ----------------------------------------------------------
   // Weather particles
   // ----------------------------------------------------------
-  function makeCloud(n, color, size, blending) {
+  function makeCloud(n, color, size, blending?) {
     const pos = new Float32Array(n * 3);
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -1004,7 +1005,7 @@ var TB = globalThis.TB = globalThis.TB || {};
     } catch (e2) { console.error(e2); }
   }
 
-  TB.render = {
+  return {
     init(cv) {
       try { init3d(cv); } catch (e) { fall2d(e); }
     },

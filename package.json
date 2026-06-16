@@ -4,15 +4,16 @@
   "description": "A browser game built on a real three-sun gravitational N-body simulation. Stable and Chaotic Eras emerge from gravity alone. A fan tribute to Liu Cixin's «The Three-Body Problem».",
   "type": "commonjs",
   "scripts": {
-    "test": "node tools/verify.js && node tools/smoke.js",
-    "verify": "node tools/verify.js",
-    "verify:quick": "node tools/verify.js quick",
-    "smoke": "node tools/smoke.js",
-    "bundle": "node tools/bundle.js",
-    "bench": "node tools/bench.js",
+    "build": "node tools/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit && tsx tools/verify.ts && tsx tools/smoke.mts",
+    "verify": "tsx tools/verify.ts",
+    "verify:quick": "tsx tools/verify.ts quick",
+    "smoke": "tsx tools/smoke.mts",
+    "bench": "tsx tools/bench.ts",
     "screenshots": "node tools/screenshots.js",
-    "sweep": "node tools/harness.js sweep 24 1500",
-    "vet": "node tools/harness.js vet 200 1600"
+    "sweep": "tsx tools/harness.ts sweep 24 1500",
+    "vet": "tsx tools/harness.ts vet 200 1600"
   },
   "keywords": [
     "game",
@@ -24,7 +25,8 @@
     "threejs",
     "symplectic-integrator",
     "orbital-mechanics",
-    "javascript"
+    "typescript",
+    "esbuild"
   ],
   "author": "Sarthak Jain",
   "license": "MIT",
@@ -39,5 +41,10 @@
   "engines": {
     "node": ">=18"
   },
-  "private": false
+  "private": false,
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.3"
+  }
 }

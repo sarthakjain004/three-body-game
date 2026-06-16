@@ -1,15 +1,17 @@
 /* ============================================================
- * THREE BODY — charts.js
+ * THREE BODY — charts.ts
  * The Observatory (temperature & sun-distance history, Mozi's
  * model, divination), the Orbit Map (the true three-body dance),
  * and the Computer (ensemble forecasts + the human-computer
  * motherboard animation). Browser only.
  * ============================================================ */
-'use strict';
-var TB = globalThis.TB = globalThis.TB || {};
-
-(function () {
-  const U = TB.util, P = TB.physics, C = TB.climate, PR = TB.predict;
+import * as U from './util';
+import * as P from './physics';
+import * as C from './climate';
+import * as PR from './predict';
+import * as V from './civ';
+import { app } from './app';
+import type { GameState } from './types';
 
   const SUN_COLORS = ['#ffd75e', '#ff9e64', '#7ecbff'];
 
@@ -44,14 +46,14 @@ var TB = globalThis.TB = globalThis.TB || {};
     // The real numbers are crunched when the animation finishes.
     setTimeout(() => {
       // The player may have started a new game mid-computation.
-      if (TB.app && TB.app.state !== state) { computing = null; return; }
+      if (app && app.state !== state) { computing = null; return; }
       // Doctrines sharpen the instruments and lengthen the ephemeris window.
-      const m = TB.civ.mods(state.civ);
+      const m = V.mods(state.civ);
       const eps = PR.epsForAge(state.civ.ageIdx) * m.forecastEps;
       const days = Math.round(540 * m.ensembleDaysMul);
       // Use a derived RNG, NOT the live game RNG — running the forecast tool
       // must not perturb the reality it predicts (found by review).
-      const frng = TB.util.makeRng(((state.seed >>> 0) ^ Math.floor(state.day * 7)) >>> 0);
+      const frng = U.makeRng(((state.seed >>> 0) ^ Math.floor(state.day * 7)) >>> 0);
       const res = PR.ensembleForecast(state.sys, days, 7, eps, frng);
       forecast = { result: res, day: state.day, eps };
       computing = null;
@@ -348,9 +350,9 @@ var TB = globalThis.TB = globalThis.TB || {};
     };
   }
 
-  TB.charts = {
-    drawObservatory, drawOrbit, drawComputer,
-    sampleTrail, resetTrail, requestForecast, rollDivination, runMozi,
-    isComputing: () => !!computing, lastForecastInfo,
-  };
-})();
+export const isComputing = () => !!computing;
+export {
+  drawObservatory, drawOrbit, drawComputer,
+  sampleTrail, resetTrail, requestForecast, rollDivination, runMozi,
+  lastForecastInfo,
+};

@@ -1,16 +1,14 @@
 /* ============================================================
- * THREE BODY — render.js
+ * THREE BODY — render2d.ts
  * Cinematic world view: panoramic sky driven by the true sun
  * positions, atmospheric scattering, lens flares, auroras,
  * parallax ridges, the pyramid, the dehydratories, the lake —
  * and later the pendulum monument and the fleet gantries.
  * Post-processed with vignette and film grain. Browser only.
  * ============================================================ */
-'use strict';
-var TB = globalThis.TB = globalThis.TB || {};
-
-(function () {
-  const U = TB.util, P = TB.physics, C = TB.climate;
+import * as U from './util';
+import * as P from './physics';
+import * as C from './climate';
 
   let canvas, ctx, W = 0, H = 0, DPR = 1;
   let viewDir = 0;
@@ -234,7 +232,7 @@ var TB = globalThis.TB = globalThis.TB || {};
                  mix(34, mix(210, 90, heat), bright)];
     return { zen, mid, hor };
   }
-  const rgb = (c, a) => 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' + (a == null ? 1 : a) + ')';
+  const rgb = (c, a?) => 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' + (a == null ? 1 : a) + ')';
 
   function drawSky(bright, T, nowMs, sunsView, horizon) {
     const p = skyPalette(bright, T);
@@ -1138,8 +1136,8 @@ var TB = globalThis.TB = globalThis.TB || {};
     if (civ.dormant) return;
     const visible = Math.round(U.clamp(Math.sqrt(Math.max(civ.popH, 0)) * 8.5, 0, 84));
     const brightNow = brightSm;
-    const dtMs = U.clamp(nowMs - (drawCrowd._last || nowMs), 0, 100);
-    drawCrowd._last = nowMs;
+    const dtMs = U.clamp(nowMs - ((drawCrowd as any)._last || nowMs), 0, 100);
+    (drawCrowd as any)._last = nowMs;
     const age = civ.ageIdx;
     const WALK = 0.000052;        // normalized x per ms — matched to the leg cycle
 
@@ -1238,7 +1236,7 @@ var TB = globalThis.TB = globalThis.TB || {};
   // Post-processing, in camera order:
   // temperature grade → event flash → vignette → film grain.
   // ----------------------------------------------------------
-  function postProcess(nowMs, T, bright, dt) {
+  function postProcess(nowMs, T, bright, dt?) {
     // Color grade: push the whole frame warm in heat, blue in cold (eased).
     const gradeTarget = U.clamp((Math.abs(T - 15) - 25) / 130, 0, 0.13);
     gradeA += (gradeTarget - gradeA) * U.relax(dt || 0.016, 0.8);
@@ -1350,6 +1348,5 @@ var TB = globalThis.TB = globalThis.TB || {};
     postProcess(nowMs, 0, 0.2);
   }
 
-  TB.render = { init, render, resize, reseedTerrain, titleDemo, addShake, flash,
+export const render2d = { init, render, resize, reseedTerrain, titleDemo, addShake, flash,
                 setBiome: setBiome2d };
-})();

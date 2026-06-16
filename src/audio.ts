@@ -1,15 +1,13 @@
 /* ============================================================
- * THREE BODY — audio.js
+ * THREE BODY — audio.ts
  * Procedural ambience (WebAudio): wind that follows the climate, a drone
  * that follows the era, generative per-era music (an evolving pad + a
  * sparse bell motif), and event stingers. All synthesized — no samples.
  * Browser only.
  * ============================================================ */
-'use strict';
-var TB = globalThis.TB = globalThis.TB || {};
+import * as U from './util';
+import type { GameState } from './types';
 
-(function () {
-  const U = TB.util;
   let ac = null, master = null, windGain = null, windFilter = null,
       droneGain = null, droneOsc = [], muted = false, ready = false;
   // Generative ambient music: a slow pad + sparse bell motif whose mode,
@@ -87,7 +85,7 @@ var TB = globalThis.TB = globalThis.TB || {};
   }
 
   // Smoothly follow the game state. Call every frame.
-  function update(state) {
+  function update(state: GameState) {
     if (!ready || !state) return;
     const now = ac.currentTime;
     const T = state.cl.tempC;
@@ -185,5 +183,4 @@ var TB = globalThis.TB = globalThis.TB || {};
   }
   function isMuted() { return muted; }
 
-  TB.audio = { init, update, sting, setMuted, isMuted };
-})();
+export { init, update, sting, setMuted, isMuted };

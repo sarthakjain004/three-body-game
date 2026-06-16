@@ -1,11 +1,11 @@
 /* ============================================================
- * THREE BODY — tools/verify.js  (Node only)
+ * THREE BODY — tools/verify.ts  (Node only)
  * The verifiability gate runner. Exercises the whole simulation
  * and asserts a battery of gates; prints a report and exits
  * non-zero if ANY gate fails (CI-style).
  *
- *   node tools/verify.js            # full battery
- *   node tools/verify.js quick      # fewer seeds / shorter runs
+ *   tsx tools/verify.ts            # full battery
+ *   tsx tools/verify.ts quick      # fewer seeds / shorter runs
  *
  * Gates:
  *   1. STATIC      — story/data/content well-formed (validate.staticChecks)
@@ -16,12 +16,16 @@
  *   5. SAVE/LOAD   — a save round-trips and continues identically
  *   6. STORY       — beats/chronicles/moments actually fire when they should
  * ============================================================ */
-'use strict';
-const path = require('path');
-const J = (f) => path.join(__dirname, '..', 'js', f);
-for (const m of ['util', 'physics', 'climate', 'civ', 'predict', 'story', 'game', 'seeds', 'validate'])
-  require(J(m + '.js'));
-const TB = globalThis.TB;
+import * as util from '../src/util';
+import * as physics from '../src/physics';
+import * as climate from '../src/climate';
+import * as civ from '../src/civ';
+import * as predict from '../src/predict';
+import * as story from '../src/story';
+import * as game from '../src/game';
+import * as validate from '../src/validate';
+import { SEEDS } from '../src/seeds';
+const TB: any = { util, physics, climate, civ, predict, story, game, validate, SEEDS };
 const V = TB.civ;
 
 const QUICK = process.argv[2] === 'quick';
@@ -41,7 +45,7 @@ function gate(name, errs) {
   }
 }
 
-// ---- the reserve-aware bot (mirrors tools/harness.js) ----
+// ---- the reserve-aware bot (mirrors tools/harness.ts) ----
 function bot(state) {
   const civ = state.civ, T = state.cl.tempC, cl = state.cl;
   if (!civ.alive || civ.dormant) return;

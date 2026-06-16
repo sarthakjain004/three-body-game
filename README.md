@@ -3,7 +3,7 @@
 [![CI](https://github.com/sarthakjain004/three-body-game/actions/workflows/ci.yml/badge.svg)](https://github.com/sarthakjain004/three-body-game/actions/workflows/ci.yml)
 [![Play live](https://img.shields.io/badge/play-live-22c55e)](https://sarthakjain004.github.io/three-body-game/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-![No build step](https://img.shields.io/badge/build-none%20·%20vanilla%20JS-lightgrey)
+[![TypeScript](https://img.shields.io/badge/TypeScript-ES%20modules%20%2B%20esbuild-3178c6)](tsconfig.json)
 
 ### ▶ Play it now: **[sarthakjain004.github.io/three-body-game](https://sarthakjain004.github.io/three-body-game/)**
 
@@ -35,14 +35,14 @@ flying stars, tri-solar days, syzygies and engulfments all *emerge* from the orb
 
 ## Play
 
-- **Easiest**: open `ThreeBody.html` (single file, no install, works offline).
-- Or open `index.html` (same game, split source files).
+- **Easiest**: open `ThreeBody.html` (single self-contained file, no install, works offline).
+- Or open `index.html`, which loads the built bundle `dist/three-body.js`.
 - Desktop browser recommended (Chrome/Safari/Firefox/Edge). Sound is optional.
 - **Rendering**: full 3D (Three.js, vendored in `lib/`) — shader sky dome, the
   three suns as real directional lights with shadows, an instanced populace
   with duties, and a settlement that physically grows through the ages. If
   WebGL is unavailable the game silently falls back to the built-in 2D
-  cinematic renderer (`js/render.js`); the simulation is identical in both.
+  cinematic renderer (`src/render2d.ts`); the simulation is identical in both.
 
 ## How to play
 
@@ -89,52 +89,67 @@ silent forever.
   members from perturbed measurements. The "chaos horizon" is wherever they
   disagree by 25 °C. Better instruments (later ages) push it out; nothing
   eliminates it. That is the point — both of the game and of the book.
-- "New Game" systems are vetted by a headless bot (`tools/harness.js`) so they
+- "New Game" systems are vetted by a headless bot (`tools/harness.ts`) so they
   are survivable, era-alternating, and winnable. "Wild System" is raw random.
 
-## Tools (Node)
+## Build & tooling
 
-```
-node tools/harness.js sweep 24 1500     # bot-play many seeds, print balance stats
-node tools/harness.js vet 200 1600      # vet seeds and write js/seeds.js
-node tools/harness.js seed 2007         # era timeline for one seed
-node tools/harness.js energy 1337 1000  # integrator drift check
-node tools/smoke.js                     # headless full-stack smoke test
-node tools/verify.js [quick]            # verifiability gates: static/data, state
-                                        #   invariants, energy drift, determinism,
-                                        #   save-load round-trip, story coverage
-node tools/bundle.js                    # build single-file ThreeBody.html
+Written in **TypeScript** (ES modules), bundled to a single browser script with
+**esbuild**; the Node tools run straight from the TypeScript sources via `tsx`.
+
+```bash
+npm install            # dev deps: typescript, esbuild, tsx
+npm run build          # esbuild → dist/three-body.js + the single-file ThreeBody.html
+npm run typecheck      # tsc --noEmit over the whole module graph
+npm test               # typecheck + verifiability gates + smoke test (what CI runs)
+
+npm run verify         # six verifiability gates (append :quick for a faster pass)
+npm run smoke          # headless full-stack test against a stubbed DOM
+npm run bench          # headless throughput benchmark
+npm run sweep          # bot-play many seeds, print balance stats
+npm run vet            # vet seeds and (re)write src/seeds.ts
+npm run screenshots    # capture the README shots from real gameplay (needs Chrome)
 ```
 
 ## Architecture
 
-No framework, no build step, no runtime dependencies — vanilla ES, with Three.js
-the only vendored library. The simulation is decoupled from rendering: the exact
-same state can be drawn by the WebGL or the 2D renderer, and run headless in Node.
+**TypeScript ES modules**, bundled by esbuild into one browser script (and one
+self-contained HTML file); Three.js is the only vendored library and stays a
+runtime global. Simulation is fully decoupled from rendering — the exact same
+state is drawn by the WebGL renderer, a 2D canvas fallback, or run headless in
+Node, which is what lets the entire test suite run without a browser.
 
 ```
-js/physics.js     three-sun N-body integrator (adaptive Yoshida-4 symplectic)
-js/climate.js     blackbody surface temperature + Stable/Chaotic era classifier
-js/civ.js         population / water / grain / doctrine economy
-js/predict.js     ensemble forecasting and the emergent "chaos horizon"
-js/game.js        core state machine and simulation loop (headless-safe)
-js/story.js       narrative beats keyed off emergent climate events
-js/seeds.js       star systems vetted by the bot to be survivable & winnable
-js/validate.js    runtime state invariants
-js/render.js      2D cinematic renderer  ·  render3d.js  Three.js renderer
-js/ui.js charts.js portraits.js audio.js main.js   presentation layer
-tools/            Node CLI: harness (bot-play), smoke, verify (gates), bundle
+src/physics.ts    three-sun N-body integrator (adaptive Yoshida-4 symplectic)
+src/climate.ts    blackbody surface temperature + Stable/Chaotic era classifier
+src/civ.ts        population / water / grain / doctrine economy
+src/predict.ts    ensemble forecasting and the emergent "chaos horizon"
+src/game.ts       core state machine and simulation loop (headless-safe)
+src/story.ts      narrative beats keyed off emergent climate events
+src/seeds.ts      star systems vetted by the bot to be survivable & winnable
+src/validate.ts   runtime state invariants + determinism fingerprint
+src/render2d.ts   2D cinematic renderer   ·   render3d.ts  Three.js renderer (2D fallback)
+src/renderer.ts   renderer selection      ·   src/types.ts  shared domain types
+src/app.ts        app singleton: state, master loop, save/load   ·   main.ts  entry
+src/ui.ts charts.ts portraits.ts audio.ts          presentation layer
+tools/            tsx CLIs: build, verify (gates), smoke, bench, harness (bot-play)
 ```
 
 **Engineering highlights**
+- **TypeScript, type-checked in CI** (`tsc --noEmit`) across the whole ES-module
+  graph; bundled with esbuild to a single deployable file — no runtime deps.
 - A real 4th-order symplectic integrator with adaptive timestep keeps energy
-  drift below 10⁻² over a full run — verified every CI build.
+  drift below 10⁻² over a full run — asserted on every CI build.
 - Gameplay (eras, weather, disasters) is *emergent* from the orbital dynamics,
-  not scripted — the same code runs in the browser and headless in Node.
-- A self-testing pipeline: `verify.js` enforces six gates (state invariants,
+  not scripted — and rendering is decoupled, so identical code runs in the
+  browser (WebGL or 2D) and headless in Node.
+- A self-testing pipeline: `verify.ts` enforces six gates (state invariants,
   energy conservation, determinism, save/load round-trip, story coverage),
-  `smoke.js` runs the full stack against a stubbed DOM, and CI fails the build
-  if the single-file bundle drifts from source.
+  `smoke.mts` drives the full stack against a stubbed DOM, and CI fails if the
+  esbuild output drifts from source.
+- **Performance** (headless, single thread): the N-body core runs ~290 simulated
+  years/sec and the full game step ~60k game-days/sec — ~170× the in-game max
+  speed, i.e. well under 1% of one core at top speed (`npm run bench`).
 
 ---
 *A fan tribute to Liu Cixin's «The Three-Body Problem» (三体). Not affiliated.
