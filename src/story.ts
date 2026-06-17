@@ -32,6 +32,14 @@ const BEATS = [
     ],
   },
   {
+    id: 'almanac', age: 5, unlock: null, title: 'The Almanac',
+    pages: [
+      { speaker: 'Friar Bacon', glyph: '✚', text: 'I am a friar; I ought to pray for the sun\'s return. Instead I have spent thirty years tabulating it — every rising, every freeze — into a great Almanac of brass and vellum.' },
+      { speaker: 'Friar Bacon', glyph: '✚', text: 'Mozi gave us a wheel of the heavens; I give you a TABLE of them. Look up the day, read the sky. While the heavens repeat, the Almanac is a lamp held against the dark.' },
+      { speaker: 'SYSTEM', glyph: '三', text: 'But a table only remembers — it cannot foresee a sky that has never repeated. Trust the Almanac through a Stable Era; close it the moment the suns forget their order.' },
+    ],
+  },
+  {
     id: 'copernicus', age: 6, unlock: 'orbit', title: 'The Three Suns',
     pages: [
       { speaker: 'SYSTEM', glyph: '三', text: 'A great hall of stone. Aristotle in his robes, Galileo with his calloused hands, and a throne above them. You have asked to speak, under the name you logged in with: COPERNICUS.' },

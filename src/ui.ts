@@ -568,6 +568,7 @@ import { render } from './renderer';
     const p = beat.pages[page];
     const last = page === beat.pages.length - 1;
     dialogShell('', `
+      ${beat.id ? art('docs/media/beats/' + beat.id + '.jpg', 'beat-art') : ''}
       <h2>${escapeHtml(beat.title)}</h2>
       <div class="speaker">
         ${portraitHtml(p.speaker)}
@@ -612,6 +613,7 @@ import { render } from './renderer';
     }
     const s = item.stats;
     dialogShell('ending-d', `
+      ${art('docs/media/end/fleet.jpg', 'end-art')}
       <h2>YOU HAVE UNDERSTOOD TRISOLARIS</h2>
       <div class="stats">
         Years beneath the three suns: <b>${s.years}</b><br>
@@ -632,6 +634,7 @@ import { render } from './renderer';
   function renderSilence(item) {
     const s = item.stats;
     dialogShell('registrar', `
+      ${art('docs/media/end/silence.jpg', 'end-art')}
       <h2>${escapeHtml(Story.SILENCE.title)}</h2>
       <div class="text">${escapeHtml(item.text)}</div>
       <div class="stats">
@@ -645,6 +648,11 @@ import { render } from './renderer';
   }
 
   // Star string for a 0–3 rank.
+  // Optional generated artwork: shows the image if the file exists, and
+  // silently removes itself (falling back to text/SVG) if it 404s.
+  function art(src, cls) {
+    return '<img class="' + cls + '" src="' + src + '" alt="" onerror="this.remove()">';
+  }
   function starStr(n) { return '★'.repeat(n) + '☆'.repeat(Math.max(0, 3 - n)); }
   function bestFor(level) {
     const p = app.getProgress();
@@ -656,9 +664,14 @@ import { render } from './renderer';
   function renderLevelComplete(item) {
     const next = item.level + 1;
     const hasNext = next < Sc.LEVELS.length;
+    const fig = (Sc.LEVELS[item.level] || ({} as any)).figure;
     dialogShell('notice-d', `
+      ${art('docs/media/levels/l' + (item.level + 1) + '.jpg', 'lc-art')}
       <h2>LEVEL ${item.level + 1} COMPLETE — ${escapeHtml(item.name)}</h2>
       <div class="stars-big">${starStr(item.stars)}</div>
+      ${fig ? '<div class="speaker"><div class="glyph">' + fig.glyph + '</div>' +
+              '<div class="who">' + escapeHtml(fig.name) + '</div></div>' +
+              '<div class="text lc-line">' + escapeHtml(fig.line) + '</div>' : ''}
       <div class="stats">
         Score: <b>${item.score.toLocaleString()}</b> — ${escapeHtml(item.title)}<br>
         Best for this level: <b>${bestFor(item.level).toLocaleString()}</b>

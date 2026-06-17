@@ -38,27 +38,37 @@ const START_AGE = 3;   // civilizations begin at the Warring States Level (civ.t
 // Seeds are the kinder→crueler vetted pool (src/seeds.ts). Each goal is a
 // milestone the engine already tracks via state.stats.maxAge / state.won.
 function ageGoal(target: number, name: string, id: string, nm: string, seed: number,
-                 stars: [number, number, number]): Level {
+                 stars: [number, number, number],
+                 figure: { name: string; glyph: string; line: string }): Level {
   return {
     id, name: nm, seed,
     goalText: 'Advance your civilization to the ' + name + '.',
     done: (s: GameState) => s.stats.maxAge >= target,
-    stars,
+    stars, figure,
   };
 }
 
+// Each level is the chapter of the figure it ends on (the beat that fires at
+// its goal age — see story.ts). The figure speaks on the level-complete card.
 export const LEVELS: Level[] = [
-  ageGoal(4,  'Imperial Level',         'l1', 'First Light',          6021, [1500, 3000, 5000]),
-  ageGoal(5,  'Medieval Level',         'l2', 'The Long Watch',       4014, [3000, 6000, 10000]),
-  ageGoal(6,  'Renaissance Level',      'l3', 'The Three Suns',       8021, [6000, 11000, 18000]),
-  ageGoal(8,  'Industrial Revolution',  'l4', 'The Human Computer',   4238, [12000, 20000, 30000]),
-  ageGoal(10, 'Atomic Age',             'l5', 'Deep Time',            5063, [20000, 32000, 46000]),
-  ageGoal(11, 'Information Age',         'l6', 'The Goal Has Changed', 7014, [30000, 45000, 62000]),
+  ageGoal(4,  'Imperial Level',        'l1', "Mozi's Machine",       6021, [1500, 3000, 5000],
+    { name: 'Mozi', glyph: '墨', line: 'You kept them alive to the age of measurement. Take my celestial sphere — but trust it only while the sky keeps its track.' }),
+  ageGoal(5,  'Medieval Level',        'l2', 'The Almanac',          4014, [3000, 6000, 10000],
+    { name: 'Friar Bacon', glyph: '✚', line: 'Your people have an Almanac of the sun now. Read it in the calm — and shut it the moment the suns run wild.' }),
+  ageGoal(6,  'Renaissance Level',     'l3', 'The Three Suns',       8021, [6000, 11000, 18000],
+    { name: 'Copernicus', glyph: '☉', line: 'You have seen what no Trisolaran eye has seen: three suns, and no solution. The Second Level is yours.' }),
+  ageGoal(8,  'Industrial Revolution', 'l4', 'The Human Computer',   4238, [12000, 20000, 30000],
+    { name: 'Von Neumann', glyph: '⚙', line: 'Thirty million flags rose at your command and computed the heavens. Calculation has a dynasty now.' }),
+  ageGoal(10, 'Atomic Age',            'l5', 'The Pendulum',         5063, [20000, 32000, 46000],
+    { name: 'Einstein', glyph: '𝑒', line: 'Finer instruments, longer sight — and still the fan opens. Prediction has a horizon, and now you know it.' }),
+  ageGoal(11, 'Information Age',        'l6', 'The Goal Has Changed', 7014, [30000, 45000, 62000],
+    { name: 'The Announcement', glyph: '三', line: 'There is nothing left to predict. There is only somewhere to go. Build the fleet.' }),
   {
     id: 'l7', name: 'Escape', seed: 6035,
     goalText: 'Reach the Space Age and launch the 1,000-ship Trisolaran Fleet.',
     done: (s: GameState) => !!s.won,
     stars: [45000, 65000, 90000],
+    figure: { name: 'The Administrator', glyph: '◉', line: 'You went as far as anyone. Now leave the game, and decide whose side the sky is on.' },
   },
 ];
 
