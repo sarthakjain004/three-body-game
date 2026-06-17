@@ -62,6 +62,7 @@ function runSeed(seed, years, opts) {
   let lastEra = state.cl.eraType, eraStart = 0;
   const counts = { syzygy: 0, triday: 0, threefs: 0, engulf: 0, eject: 0, rip: 0 };
   let tMin = 99, tMax = -99;
+  let maxStableT = -999, minStableT = 999, stTrackDays = 0, stBadDays = 0;
   const days = years * 365.25;
   let firstPlanetLossYr = null, wonYear = null, sunEscapeYr = null;
 
@@ -88,6 +89,12 @@ function runSeed(seed, years, opts) {
     const T = state.cl.tempC;
     if (T < tMin) tMin = T;
     if (T > tMax) tMax = T;
+    if (state.cl.eraType === 'stable') {
+      stTrackDays += DT;
+      if (T > maxStableT) maxStableT = T;
+      if (T < minStableT) minStableT = T;
+      if (T > 45 || T < -10) stBadDays += DT;   // stable time outside the survival band
+    }
     if (state.sunEscaped && sunEscapeYr == null) sunEscapeYr = Math.floor(state.day / 365.25);
     // count events from the log we haven't seen
   }
@@ -113,6 +120,8 @@ function runSeed(seed, years, opts) {
     meanStableYr: eras.filter(e => e.type === 'stable').length
       ? stableDays / eras.filter(e => e.type === 'stable').length / 365.25 : 0,
     tMin: Math.round(tMin), tMax: Math.round(tMax),
+    maxStableT: Math.round(maxStableT), minStableT: Math.round(minStableT),
+    stableBadFrac: stTrackDays > 0 ? stBadDays / stTrackDays : 1,
     counts, sunEscapeYr,
     drift,
     eras,
@@ -132,6 +141,7 @@ function fmtRow(r) {
     ('syz:' + r.counts.syzygy).padEnd(7),
     ('3fs:' + r.counts.threefs).padEnd(8),
     ('sunEsc:' + (r.sunEscapeYr == null ? '-' : r.sunEscapeYr)).padEnd(11),
+    ('sBad:' + (r.stableBadFrac * 100).toFixed(0) + '%').padEnd(9),
     'drift:' + r.drift.toExponential(1),
   ].join(' ');
 }
@@ -144,6 +154,8 @@ function isGoodSeed(r, years) {
   if (r.planetsLost > 4) return false;
   if (r.stableFrac < 0.35 || r.stableFrac > 0.95) return false;     // mostly livable, but real chaos
   if (r.nStable < 4 || r.nStable > 110) return false;                // eras alternate, but no flapping
+  if (r.stableBadFrac > 0.06) return false;                          // Stable Eras must stay livable
+  if (r.maxStableT > 60 || r.minStableT < -22) return false;         // ...with no killing spikes
   if (r.tMin > -30 || r.tMax < 55) return false;                     // the sky must bite
   if (r.counts.syzygy > 20) return false;                            // syzygy spam
   if (r.civsLost < 1 || r.civsLost > 30) return false;               // some loss, no death spiral

@@ -23,8 +23,8 @@ const CHAOS_AFTER = 6;      // days of disorder before Chaos is declared
 // Chaotic Era. Bands track civ.ts's hydrated survival range (−10…45 °C), with
 // hysteresis so the era doesn't flap at the edge.
 const LIVABLE_LO = -10, LIVABLE_HI = 45;   // °C — within ⇒ a Stable Era may be declared
-const LETHAL_LO = -18, LETHAL_HI = 52;     // °C — beyond ⇒ a Stable Era breaks (Chaotic)
-const LETHAL_AFTER = 14;    // days of persistent lethal sky before a Stable Era breaks
+const LETHAL_LO = -16, LETHAL_HI = 50;     // °C — beyond ⇒ a Stable Era breaks (Chaotic)
+const LETHAL_AFTER = 6;     // days of persistent lethal sky before a Stable Era breaks
 const DISC_DIST = 2.2;      // AU — nearer than this, a sun shows a disc
 const FLY_DIST = 2.8;       // AU — farther than this, a sun is a "flying star"
 const ENGULF_DIST = 0.03;   // AU — the planet skims the photosphere

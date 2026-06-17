@@ -1,7 +1,9 @@
 /* Vetted starting systems (tools/harness.ts) — re-vetted after Stable Eras
- * were redefined to require a LIVABLE sky, not just an orderly orbit. Each
- * system: the triple survives 1000+ years with no sun escaping; Stable and
- * Chaotic Eras genuinely alternate WITHOUT flapping; the world both freezes
- * and burns; some civilizations/worlds are lost; and a competent bot player
- * wins in ~300–700 game-years with livable Stable Eras to grow in. */
-export const SEEDS = [4077, 9028, 9203, 4154, 5133, 6021, 8238, 8189, 5077];
+ * were redefined to require a LIVABLE sky, not just an orderly orbit. Every
+ * system here: the triple survives with no sun escaping; Stable and Chaotic
+ * Eras genuinely alternate; the world both freezes (≤ −30 °C) and burns
+ * (≥ +55 °C); a competent bot wins; and — the new criterion — its Stable
+ * Eras stay within the survival band (< ~2% of stable time is lethal, no
+ * killing spikes). Ordered roughly kinder → crueler. */
+export const SEEDS = [6021, 4014, 8021, 4238, 5063, 7014, 4182, 8189, 5028,
+            9203, 4077, 5077, 7259, 5133, 6035];
