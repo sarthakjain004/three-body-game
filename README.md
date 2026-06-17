@@ -75,6 +75,18 @@ The planet has **12 worlds' worth of chances** (the suns of Trisolaris consumed
 eleven planets before the novel begins...). Lose them all and the system falls
 silent forever.
 
+## Levels, objectives & score
+
+The campaign is a ladder of **levels** — *First Light → The Long Watch → … →
+Escape* — each a vetted star system with a clear goal (advance to a given age;
+the finale is launching the fleet). Completing one **unlocks** the next. A live
+**Objectives** panel always shows the level's goal and the single most useful
+next step ("Dehydrate before the killing sky", "Publish a Calendar"), so it's
+never a mystery what to do. A running **score** rewards ages reached, population,
+calendars kept and survival; each level ends with a **rank (★/★★/★★★)** and your
+**best run is saved** to beat. Prefer no rails? **Wild System** is a random
+sandbox, scored but outside the ladder.
+
 ## The simulation
 
 - Units AU / years / M☉, G = 4π². Suns integrated with adaptive Yoshida-4

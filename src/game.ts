@@ -10,6 +10,7 @@ import * as V from './civ';
 import * as S from './story';
 import * as PR from './predict';
 import * as U from './util';
+import * as Sc from './score';
 import type { GameState, Climate, Rng } from './types';
 
 const PLANETS_AT_START = 12;   // the system began with twelve worlds
@@ -17,7 +18,7 @@ const PLANETS_AT_START = 12;   // the system began with twelve worlds
 // ----------------------------------------------------------
 // Creation
 // ----------------------------------------------------------
-function createGame(seed) {
+function createGame(seed, opts?) {
   const rng = U.makeRng(seed == null ? 137 : seed);
   const state = {
     seed: rng.seed,
@@ -40,6 +41,11 @@ function createGame(seed) {
     _escCheck: 0,           // day accumulators for rare checks
     stats: { civsLost: 0, planetsLost: 0, proclaimOk: 0, proclaimBad: 0,
              maxAge: 3, startCivNo: 137 },
+    // Levels / objectives / score (see score.ts). level -1 = Wild System.
+    level: (opts && opts.level != null) ? opts.level : -1,
+    score: 0,
+    objsDone: {},
+    levelDone: false,
   };
   addLog(state, 'You have logged in to Three Body. Civilization No. 137.', 'sys');
   checkBeats(state);
@@ -126,9 +132,14 @@ function tick(state:GameState, dtDays) {
 
   // 6. Calendar resolution
   if (state.calendar) resolveCalendar(state);
+  if (state.over) return;
 
   state.day += dtDays;
   state.stats.maxAge = Math.max(state.stats.maxAge, state.civ.ageIdx);
+
+  // 7. Levels, objectives & score (deterministic — part of the game state)
+  for (const ev of Sc.tickProgress(state)) push(state, ev);
+  state.score = Sc.computeScore(state);
 }
 
 function handleClimateEvent(state, ev, rng:Rng) {
@@ -464,6 +475,8 @@ function cmdBuyDoctrine(state:GameState, id) {
 // Summary / save / load
 // ----------------------------------------------------------
 function summary(state) {
+  const score = Sc.computeScore(state);
+  const rank = Sc.rankFor(state.level, score);
   return {
     years: Math.floor(state.day / 365.25),
     civsLost: state.stats.civsLost,
@@ -472,6 +485,7 @@ function summary(state) {
     proclaimOk: state.stats.proclaimOk,
     proclaimBad: state.stats.proclaimBad,
     maxAge: V.AGES[state.stats.maxAge].name,
+    score, stars: rank.stars, title: rank.title, level: state.level,
   };
 }
 
@@ -492,6 +506,8 @@ function save(state) {
     stats: state.stats,
     log: state.log.slice(-60),
     over: state.over, won: state.won,
+    level: state.level, score: state.score,
+    objsDone: state.objsDone, levelDone: state.levelDone,
   };
 }
 
@@ -515,6 +531,10 @@ function load(data) {
     over: !!data.over, won: !!data.won,
     _escCheck: 0,
     stats: data.stats,
+    level: data.level == null ? -1 : data.level,
+    score: data.score || 0,
+    objsDone: data.objsDone || {},
+    levelDone: !!data.levelDone,
   };
   // Migrate pre-economy saves: seed the reserves from current capacities.
   const c = state.civ;
