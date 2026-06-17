@@ -8,11 +8,13 @@ import * as Charts from './charts';
 import * as Audio from './audio';
 import * as UI from './ui';
 import * as Story from './story';
+import * as Sc from './score';
 import { render } from './renderer';
 import { SEEDS } from './seeds';
 import type { App } from './types';
 
   const SAVE_KEY = 'threebody.save.v1';
+  const PROGRESS_KEY = 'threebody.progress.v1';
   const SPEEDS = [0, 2, 10, 60, 365];      // days of game time per real second
   const CHUNK = 0.5;                        // days per tick
   const MAX_DAYS_PER_FRAME = 12;
@@ -24,6 +26,7 @@ import type { App } from './types';
     overlayPause: 0,
     setSpeed, pauseForOverlay, resumeFromOverlay,
     newGame, wildGame, continueGame, sandboxContinue, showTitle,
+    startLevel, recordResult, getProgress,
   };
 
   // Console / automated-screenshot debug handle (no effect on gameplay).
@@ -45,15 +48,60 @@ import type { App } from './types';
   function resumeFromOverlay() { app.overlayPause = Math.max(0, app.overlayPause - 1); }
 
   // ----------------------------------------------------------
-  function newGame() {
-    const seeds = (SEEDS && SEEDS.length) ? SEEDS : null;
-    const seed = seeds
-      ? seeds[Math.floor(Math.random() * seeds.length)]
-      : (Math.random() * 0xFFFFFFFF) >>> 0;
-    startWith(G.createGame(seed));
+  // Start a campaign level by index (its fixed vetted seed).
+  function startLevel(n) {
+    const lvl = Sc.LEVELS[n];
+    if (!lvl) return wildGame();
+    startWith(G.createGame(lvl.seed, { level: n }));
   }
+  function newGame() { startLevel(0); }   // "new game" = the first level
   function wildGame() {
-    startWith(G.createGame((Math.random() * 0xFFFFFFFF) >>> 0));
+    startWith(G.createGame((Math.random() * 0xFFFFFFFF) >>> 0, { level: -1 }));
+  }
+
+  // ---- Persistent progress (unlocked levels + best scores) ----
+  function getProgress() {
+    try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function unlockedCount() { return Math.max(0, getProgress().unlocked || 0); }
+  function bestFor(id) { const p = getProgress(); return (p.best && p.best[id]) || 0; }
+  // Record a finished level: bump the best score and unlock the next level.
+  function recordResult(level, score) {
+    if (level < 0 || level >= Sc.LEVELS.length) return;   // Wild System never unlocks
+    const p: any = getProgress();
+    p.best = p.best || {};
+    const id = Sc.LEVELS[level].id;
+    if (score > (p.best[id] || 0)) p.best[id] = score;
+    p.unlocked = Math.min(Sc.LEVELS.length - 1, Math.max(p.unlocked || 0, level + 1));
+    if (score > (p.bestOverall || 0)) p.bestOverall = score;
+    try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch (e) {}
+  }
+
+  // Build the title-screen level picker from stored progress.
+  function buildLevelSelect() {
+    const host = document.getElementById('level-select');
+    if (!host) return;
+    const unlocked = unlockedCount();
+    let html = '';
+    for (let i = 0; i < Sc.LEVELS.length; i++) {
+      const lvl = Sc.LEVELS[i];
+      const locked = i > unlocked;
+      const best = bestFor(lvl.id);
+      const r = Sc.rankFor(i, best);
+      const stars = best > 0 ? '★'.repeat(r.stars) + '☆'.repeat(3 - r.stars) : '';
+      html += '<button class="level-btn' + (locked ? ' locked' : '') + '" data-lv="' + i + '"' +
+        (locked ? ' disabled' : '') + '>' +
+        '<span class="lv-no">' + (locked ? '🔒' : (i + 1)) + '</span>' +
+        '<span class="lv-name">' + lvl.name + '</span>' +
+        '<span class="lv-stars">' + (locked ? 'locked' : (stars + (best > 0 ? '  ' + best : ''))) + '</span>' +
+        '</button>';
+    }
+    host.innerHTML = html;
+    host.querySelectorAll('.level-btn').forEach((b: any) => {
+      if (b.classList.contains('locked')) return;
+      b.onclick = () => startLevel(+b.dataset.lv);
+    });
   }
   function continueGame() {
     try {
@@ -82,6 +130,7 @@ import type { App } from './types';
     try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
     app.state = null;
     refreshTitleButtons();
+    buildLevelSelect();
     document.getElementById('title').classList.remove('hidden');
     document.getElementById('hud').style.display = 'none';
   }
@@ -138,9 +187,9 @@ import type { App } from './types';
     UI.init();
 
     document.getElementById('t-continue').onclick = continueGame;
-    document.getElementById('t-new').onclick = newGame;
     document.getElementById('t-wild').onclick = wildGame;
     refreshTitleButtons();
+    buildLevelSelect();
     document.getElementById('hud').style.display = 'none';   // hidden behind the title
 
     // Dev/testing flags: ThreeBody.html#autostart[,skipintro][,seed=NNN]

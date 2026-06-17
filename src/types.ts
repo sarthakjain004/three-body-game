@@ -106,7 +106,31 @@ export interface GameState {
   pending: PendingEvent[];
   flags: { [k: string]: any };
   story: { [k: string]: any };
+  // Levels / objectives / score (see score.ts).
+  level: number;                  // index into LEVELS, or -1 for Wild System
+  score: number;                  // running score, recomputed each tick
+  objsDone: { [id: string]: boolean };  // contextual objectives already completed
+  levelDone: boolean;             // the level's primary objective has been met
   [k: string]: any;
+}
+
+/** A level in the campaign ladder (score.ts LEVELS). */
+export interface Level {
+  id: string;
+  name: string;
+  seed: number;
+  goalText: string;               // the primary objective, shown to the player
+  /** True once this level's goal is met for the given state. */
+  done(state: GameState): boolean;
+  stars: [number, number, number];  // score thresholds for ★ / ★★ / ★★★
+}
+
+/** A live objective shown in the Objectives panel. */
+export interface Objective {
+  id: string;
+  text: string;
+  kind: 'primary' | 'do' | 'done';
+  danger?: boolean;               // render with the warn/crit treatment
 }
 
 /** Ensemble forecast result (predict.ensembleForecast). */
@@ -132,6 +156,9 @@ export interface App {
   continueGame(): void;
   sandboxContinue(): void;
   showTitle(): void;
+  startLevel(n: number): void;
+  recordResult(level: number, score: number): void;
+  getProgress(): { unlocked?: number; best?: { [id: string]: number }; bestOverall?: number };
 }
 
 /** The renderer interface, implemented by both the 2D and 3D renderers. */

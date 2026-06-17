@@ -24,6 +24,7 @@ import * as predict from '../src/predict';
 import * as story from '../src/story';
 import * as game from '../src/game';
 import * as validate from '../src/validate';
+import * as score from '../src/score';
 import { SEEDS } from '../src/seeds';
 const TB: any = { util, physics, climate, civ, predict, story, game, validate, SEEDS };
 const V = TB.civ;
@@ -189,6 +190,41 @@ gate('STATIC: content & data well-formed', TB.validate.staticChecks());
   if (!kingWenFired) errs.push('king-wen moment never fired despite bold failing calendars');
 
   gate('STORY: beats, chronicles & the King Wen disaster all fire', errs);
+}
+
+// ---- Gate 7: PROGRESS (score + levels + objectives) ----
+{
+  const errs = [];
+
+  // (a) Score is deterministic for a fixed seed + step count.
+  const scoreRun = () => {
+    const s = TB.game.createGame(137);
+    for (let i = 0; i < 2000; i++) { TB.game.tick(s, DT); s.pending.length = 0; }
+    return s.score;
+  };
+  if (scoreRun() !== scoreRun()) errs.push('score is not deterministic for a fixed seed');
+
+  // (b) rankFor: stars are 0..3 and monotonic in score.
+  if (score.rankFor(0, 0).stars !== 0) errs.push('rankFor(0,0) should give 0 stars');
+  if (score.rankFor(0, 1e9).stars !== 3) errs.push('rankFor(0,huge) should give 3 stars');
+
+  // (c) A bot-played Level 1 reaches its goal (Imperial Level) and fires
+  //     a level-complete event; the score ends positive.
+  const L0 = score.LEVELS[0];
+  const s = TB.game.createGame(L0.seed, { level: 0 });
+  let completed = false, g = 0;
+  while (!s.over && g++ < 2e6) {
+    TB.game.tick(s, DT);
+    for (const p of s.pending) if (p.kind === 'level-complete' && p.level === 0) completed = true;
+    s.pending.length = 0;
+    bot(s);
+    if (completed && s.day > 200 * 365.25) break;   // seen it; no need to play on
+  }
+  if (!(completed || s.levelDone))
+    errs.push('Level 1 never completed (maxAge ' + s.stats.maxAge + ', objective needs ≥ 4)');
+  if (!(s.score > 0)) errs.push('score is not positive after a full Level 1 run');
+
+  gate('PROGRESS: score deterministic, ranks sane, Level 1 completes', errs);
 }
 
 // ============================================================

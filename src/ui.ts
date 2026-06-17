@@ -12,6 +12,7 @@ import * as Audio from './audio';
 import * as Charts from './charts';
 import * as Portraits from './portraits';
 import * as Story from './story';
+import * as Sc from './score';
 import { app } from './app';
 import { render } from './renderer';
 
@@ -30,8 +31,9 @@ import { render } from './renderer';
     el = {
       hudCiv: $('hud-civ'), hudEra: $('hud-era'), hudDate: $('hud-date'),
       hudTemp: $('hud-temp'), hudPop: $('hud-pop'), hudAge: $('hud-age'),
-      hudTrust: $('hud-trust'), hudWorlds: $('hud-worlds'),
+      hudTrust: $('hud-trust'), hudWorlds: $('hud-worlds'), hudScore: $('hud-score'),
       hudWater: $('hud-water'), hudGrain: $('hud-grain'), advisory: $('advisory'),
+      objectives: $('objectives'),
       banner: $('banner'), log: $('log'), procStatus: $('proc-status'),
       overlay: $('overlay'), panel: $('panel'), panelBody: $('panel-body'),
       panelControls: $('panel-controls'), fleetbar: $('fleetbar'),
@@ -153,10 +155,30 @@ import { render } from './renderer';
   function update(state, nowMs) {
     updateHud(state);
     updateAdvisory(state);
+    updateObjectives(state);
     updateTutorial(state, nowMs);
     updateLog(state);
     updateBanner(nowMs);
     if (panelOpen) drawPanel(state, nowMs);
+  }
+
+  // ----------------------------------------------------------
+  // Objectives panel — the level goal + the single most useful next step.
+  // This is the primary "what do I do?" guidance (score.ts is the source).
+  // ----------------------------------------------------------
+  function updateObjectives(state) {
+    if (!el.objectives) return;
+    if (state.over) { el.objectives.className = ''; return; }
+    const prim = Sc.primaryObjective(state);
+    const now = Sc.nowStep(state);
+    let html = '<div class="obj-goal"><span class="obj-k">Goal</span>' +
+      escapeHtml(prim.text) + '</div>';
+    if (now) {
+      html += '<div class="obj-now' + (now.danger ? ' danger' : '') + '">' +
+        '<span class="obj-k">Now</span>' + now.text + '</div>';
+    }
+    el.objectives.innerHTML = html;
+    el.objectives.className = 'show' + (now && now.danger ? ' danger' : '');
   }
 
   // ----------------------------------------------------------
@@ -306,6 +328,12 @@ import { render } from './renderer';
     el.hudAge.innerHTML = '<span class="label">Era of</span>' + V.AGES[civ.ageIdx].name;
     el.hudTrust.innerHTML = '<span class="label">Trust</span>' + Math.round(civ.trust * 100) + '%';
     el.hudWorlds.innerHTML = '<span class="label">Worlds left</span>' + state.planetsLeft + ' / 12';
+    if (el.hudScore) {
+      const lvl = state.level >= 0 && Sc.LEVELS[state.level];
+      el.hudScore.innerHTML = '<span class="label">' +
+        (lvl ? 'Lvl ' + (state.level + 1) + ' · Score' : 'Score') + '</span>' +
+        (state.score || 0).toLocaleString();
+    }
 
     // Buttons.
     const noCiv = !civ.alive || civ.dormant || state.over;
@@ -438,11 +466,23 @@ import { render } from './renderer';
         case 'ending':
           Audio.sting('fleet');
           render.flash('150,255,190', 0.18);
+          app.recordResult(state.level, (it.stats && it.stats.score) || 0);  // final level won
           overlayQueue.push({ type: 'ending', ending: it.ending, stats: it.stats });
           break;
         case 'silence':
           Audio.sting('death');
           overlayQueue.push({ type: 'silence', text: it.text, stats: it.stats });
+          break;
+        case 'objective':
+          // A core lesson learned — gentle, non-modal acknowledgement.
+          pushBanner('✓ ' + it.text, 'good');
+          Audio.sting('germinate');
+          break;
+        case 'level-complete':
+          app.recordResult(it.level, it.score);
+          Audio.sting('age');
+          render.flash('150,255,190', 0.16);
+          overlayQueue.push({ type: 'level-complete', item: it });
           break;
       }
     }
@@ -471,6 +511,7 @@ import { render } from './renderer';
     else if (item.type === 'planet-lost') renderSimple('THE WORLD IS LOST', item.text, 'registrar', 'Continue');
     else if (item.type === 'ending') renderEnding(item, 0);
     else if (item.type === 'silence') renderSilence(item);
+    else if (item.type === 'level-complete') renderLevelComplete(item.item);
   }
 
   function closeOverlay() {
@@ -577,11 +618,12 @@ import { render } from './renderer';
         Civilizations destroyed: <b>${s.civsLost}</b> (last: No. ${s.lastCivNo})<br>
         Worlds consumed: <b>${s.planetsLost}</b><br>
         Calendars fulfilled / failed: <b>${s.proclaimOk} / ${s.proclaimBad}</b><br>
-        Highest age: <b>${s.maxAge}</b>
+        Highest age: <b>${s.maxAge}</b><br>
+        Final score: <b>${(s.score || 0).toLocaleString()}</b> — ${escapeHtml(s.title || '')} ${starStr(s.stars || 0)}
       </div>
       <div class="btnrow">
         <button id="end-watch">Keep watching the suns</button>
-        <button class="primary" id="end-new">New game</button>
+        <button class="primary" id="end-new">Title</button>
       </div>`);
     $('end-watch').onclick = () => { app.sandboxContinue(); closeOverlay(); };
     $('end-new').onclick = () => { closeOverlay(); app.showTitle(); };
@@ -595,10 +637,41 @@ import { render } from './renderer';
       <div class="stats">
         Years beneath the three suns: <b>${s.years}</b> ·
         Civilizations: <b>${s.civsLost}</b> ·
-        Highest age: <b>${s.maxAge}</b>
+        Highest age: <b>${s.maxAge}</b> ·
+        Score: <b>${(s.score || 0).toLocaleString()}</b>
       </div>
       <div class="btnrow"><button class="primary" id="end-new">Begin again</button></div>`);
     $('end-new').onclick = () => { closeOverlay(); app.showTitle(); };
+  }
+
+  // Star string for a 0–3 rank.
+  function starStr(n) { return '★'.repeat(n) + '☆'.repeat(Math.max(0, 3 - n)); }
+  function bestFor(level) {
+    const p = app.getProgress();
+    const id = (Sc.LEVELS[level] || ({} as any)).id;
+    return (p.best && id && p.best[id]) || 0;
+  }
+
+  // The non-terminal "level complete" card: rank, score, best, and where next.
+  function renderLevelComplete(item) {
+    const next = item.level + 1;
+    const hasNext = next < Sc.LEVELS.length;
+    dialogShell('notice-d', `
+      <h2>LEVEL ${item.level + 1} COMPLETE — ${escapeHtml(item.name)}</h2>
+      <div class="stars-big">${starStr(item.stars)}</div>
+      <div class="stats">
+        Score: <b>${item.score.toLocaleString()}</b> — ${escapeHtml(item.title)}<br>
+        Best for this level: <b>${bestFor(item.level).toLocaleString()}</b>
+        ${hasNext ? '<br>Unlocked: <b>Level ' + (next + 1) + ' · ' + escapeHtml(Sc.LEVELS[next].name) + '</b>' : ''}
+      </div>
+      <div class="btnrow">
+        <button id="lc-stay">Keep playing</button>
+        ${hasNext ? '<button class="primary" id="lc-next">Next level</button>'
+                  : '<button class="primary" id="lc-title">Title</button>'}
+      </div>`);
+    if ($('lc-stay')) $('lc-stay').onclick = closeOverlay;
+    if ($('lc-next')) $('lc-next').onclick = () => { closeOverlay(); app.startLevel(next); };
+    if ($('lc-title')) $('lc-title').onclick = () => { closeOverlay(); app.showTitle(); };
   }
 
   // ----------------------------------------------------------

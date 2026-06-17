@@ -1412,8 +1412,180 @@
     }
   });
 
+  // src/score.ts
+  function ageGoal(target, name, id, nm, seed, stars2) {
+    return {
+      id,
+      name: nm,
+      seed,
+      goalText: "Advance your civilization to the " + name + ".",
+      done: (s) => s.stats.maxAge >= target,
+      stars: stars2
+    };
+  }
+  function levelOf(state) {
+    return state.level >= 0 && state.level < LEVELS.length ? LEVELS[state.level] : null;
+  }
+  function isLastLevel(level) {
+    return level === LEVELS.length - 1;
+  }
+  function computeScore(state) {
+    const st = state.stats, civ = state.civ;
+    let s = 0;
+    s += SCORE.AGE * Math.max(0, st.maxAge - START_AGE);
+    s += SCORE.PEAKPOP * (civ.peakPop || 0);
+    s += SCORE.YEAR * (state.day / 365.25);
+    s += SCORE.CAL_OK * (st.proclaimOk || 0) - SCORE.CAL_BAD * (st.proclaimBad || 0);
+    s += SCORE.TRUST * (civ.trust || 0);
+    s += SCORE.DOCTRINE * Object.keys(civ.doctrines || {}).length;
+    s += SCORE.OBJECTIVE * Object.keys(state.objsDone || {}).length;
+    s -= SCORE.CIV_LOST * (st.civsLost || 0);
+    s -= SCORE.PLANET_LOST * (st.planetsLost || 0);
+    if (state.levelDone) s += SCORE.LEVEL;
+    if (state.won) s += SCORE.WIN;
+    return Math.max(0, Math.round(s));
+  }
+  function rankFor(level, score) {
+    const thr = LEVELS[level] && LEVELS[level].stars || [2e4, 45e3, 8e4];
+    let stars2 = 0;
+    for (const t of thr) if (score >= t) stars2++;
+    return { stars: stars2, title: TITLES[stars2] };
+  }
+  function nowStep(state) {
+    const civ = state.civ, cl = state.cl;
+    if (state.over) return null;
+    if (!civ.alive || civ.dormant)
+      return { id: "wait", kind: "do", text: "A seed waits underground. Speed up time [2–4] until the sky is livable." };
+    const T = cl.tempC;
+    if (civ.popH > 1e-3 && civ.order !== "dehydrate" && (T < -6 || T > 43))
+      return { id: "do-dehydrate", kind: "do", danger: true, text: "KILLING SKY — Dehydrate [D] now, before cold or heat takes them." };
+    const fd = foodDays(civ), sust = sustainablePop(civ, cl);
+    if (civ.popH > sust * 1.4 && fd < 22 && fd > 0)
+      return { id: "do-shed", kind: "do", danger: true, text: "Famine looms — set order size to ⅓ and Dehydrate to save your grain." };
+    if (cl.eraType === "stable" && (civ.popD || 0) > 0.5 && T > 2 && T < 36 && civ.order !== "rehydrate" && civ.water > civ.popD * 0.3)
+      return { id: "do-rehydrate", kind: "do", text: "A Stable Era — Rehydrate [R] your stored people to live and grow." };
+    if (cl.eraType === "stable" && !state.calendar)
+      return { id: "do-calendar", kind: "do", text: "The sky is calm — run the Computer [C], then publish a Calendar [P]." };
+    if ((civ.insight || 0) > 0)
+      return { id: "do-doctrine", kind: "do", text: "You have Insight ◆ — spend it on a Doctrine [V]." };
+    if (state.flags.escape && civ.ageIdx >= 12 && !civ.fleet.building)
+      return { id: "do-fleet", kind: "do", text: "Build the Trisolaran Fleet — escape the three suns." };
+    return null;
+  }
+  function primaryObjective(state) {
+    const lvl = levelOf(state);
+    const here = AGES[state.civ.ageIdx] ? AGES[state.civ.ageIdx].name : "";
+    if (!lvl)
+      return { id: "primary", kind: "primary", text: "WILD SYSTEM — survive, advance, and launch the Fleet. (now: " + here + ")" };
+    return {
+      id: "primary",
+      kind: state.levelDone ? "done" : "primary",
+      text: lvl.goalText + (state.levelDone ? " ✓" : "  (now: " + here + ")")
+    };
+  }
+  function tickProgress(state) {
+    const events = [];
+    if (!state.objsDone) state.objsDone = {};
+    for (const t of TEACH) {
+      if (!state.objsDone[t.id] && t.cond(state)) {
+        state.objsDone[t.id] = true;
+        events.push({ kind: "objective", id: t.id, text: t.label });
+      }
+    }
+    const lvl = levelOf(state);
+    if (lvl && !state.levelDone && lvl.done(state)) {
+      state.levelDone = true;
+      if (!isLastLevel(state.level)) {
+        const score = computeScore(state);
+        const r = rankFor(state.level, score);
+        events.push({
+          kind: "level-complete",
+          level: state.level,
+          name: lvl.name,
+          score,
+          stars: r.stars,
+          title: r.title
+        });
+      }
+    }
+    return events;
+  }
+  var SCORE, START_AGE, LEVELS, TITLES, TEACH;
+  var init_score = __esm({
+    "src/score.ts"() {
+      "use strict";
+      init_civ();
+      SCORE = {
+        AGE: 1e3,
+        // per age advanced beyond the Warring-States start
+        PEAKPOP: 8,
+        // per million at peak population
+        YEAR: 3,
+        // per game-year survived
+        CAL_OK: 600,
+        // per calendar kept
+        CAL_BAD: 150,
+        // per calendar broken (penalty)
+        TRUST: 600,
+        // × current trust (0..1)
+        DOCTRINE: 250,
+        // per doctrine adopted
+        OBJECTIVE: 200,
+        // per one-time teaching objective completed
+        CIV_LOST: 300,
+        // per civilization lost (penalty)
+        PLANET_LOST: 800,
+        // per world consumed (penalty)
+        LEVEL: 5e3,
+        // bonus for completing the level's goal
+        WIN: 15e3
+        // bonus for launching the fleet
+      };
+      START_AGE = 3;
+      LEVELS = [
+        ageGoal(4, "Imperial Level", "l1", "First Light", 6021, [1500, 3e3, 5e3]),
+        ageGoal(5, "Medieval Level", "l2", "The Long Watch", 4014, [3e3, 6e3, 1e4]),
+        ageGoal(6, "Renaissance Level", "l3", "The Three Suns", 8021, [6e3, 11e3, 18e3]),
+        ageGoal(8, "Industrial Revolution", "l4", "The Human Computer", 4238, [12e3, 2e4, 3e4]),
+        ageGoal(10, "Atomic Age", "l5", "Deep Time", 5063, [2e4, 32e3, 46e3]),
+        ageGoal(11, "Information Age", "l6", "The Goal Has Changed", 7014, [3e4, 45e3, 62e3]),
+        {
+          id: "l7",
+          name: "Escape",
+          seed: 6035,
+          goalText: "Reach the Space Age and launch the 1,000-ship Trisolaran Fleet.",
+          done: (s) => !!s.won,
+          stars: [45e3, 65e3, 9e4]
+        }
+      ];
+      TITLES = ["Survivor", "Steward of Trisolaris", "Calendar-Keeper", "Master of the Three Suns"];
+      TEACH = [
+        {
+          id: "dehydrate",
+          label: "Dehydrate your people before the killing sky",
+          cond: (s) => s.civ.order === "dehydrate" || (s.civ.popD || 0) > 0.5
+        },
+        {
+          id: "rehydrate",
+          label: "Rehydrate in a Stable Era and let them grow",
+          cond: (s) => s.civ.order === "rehydrate"
+        },
+        {
+          id: "calendar",
+          label: "Publish a Calendar to earn the people’s trust",
+          cond: (s) => !!s.calendar
+        },
+        {
+          id: "doctrine",
+          label: "Spend Insight on a Doctrine",
+          cond: (s) => Object.keys(s.civ.doctrines || {}).length > 0
+        }
+      ];
+    }
+  });
+
   // src/game.ts
-  function createGame(seed) {
+  function createGame(seed, opts) {
     const rng = makeRng(seed == null ? 137 : seed);
     const state = {
       seed: rng.seed,
@@ -1451,7 +1623,12 @@
         proclaimBad: 0,
         maxAge: 3,
         startCivNo: 137
-      }
+      },
+      // Levels / objectives / score (see score.ts). level -1 = Wild System.
+      level: opts && opts.level != null ? opts.level : -1,
+      score: 0,
+      objsDone: {},
+      levelDone: false
     };
     addLog(state, "You have logged in to Three Body. Civilization No. 137.", "sys");
     checkBeats(state);
@@ -1519,8 +1696,11 @@
     for (const ev of cvEvents) handleCivEvent(state, ev);
     if (state.over) return;
     if (state.calendar) resolveCalendar(state);
+    if (state.over) return;
     state.day += dtDays;
     state.stats.maxAge = Math.max(state.stats.maxAge, state.civ.ageIdx);
+    for (const ev of tickProgress(state)) push(state, ev);
+    state.score = computeScore(state);
   }
   function handleClimateEvent(state, ev, rng) {
     const cl = state.cl;
@@ -1809,6 +1989,8 @@
     return true;
   }
   function summary(state) {
+    const score = computeScore(state);
+    const rank = rankFor(state.level, score);
     return {
       years: Math.floor(state.day / 365.25),
       civsLost: state.stats.civsLost,
@@ -1816,7 +1998,11 @@
       lastCivNo: state.civ.no,
       proclaimOk: state.stats.proclaimOk,
       proclaimBad: state.stats.proclaimBad,
-      maxAge: AGES[state.stats.maxAge].name
+      maxAge: AGES[state.stats.maxAge].name,
+      score,
+      stars: rank.stars,
+      title: rank.title,
+      level: state.level
     };
   }
   function save(state) {
@@ -1837,7 +2023,11 @@
       stats: state.stats,
       log: state.log.slice(-60),
       over: state.over,
-      won: state.won
+      won: state.won,
+      level: state.level,
+      score: state.score,
+      objsDone: state.objsDone,
+      levelDone: state.levelDone
     };
   }
   function load(data) {
@@ -1860,7 +2050,11 @@
       over: !!data.over,
       won: !!data.won,
       _escCheck: 0,
-      stats: data.stats
+      stats: data.stats,
+      level: data.level == null ? -1 : data.level,
+      score: data.score || 0,
+      objsDone: data.objsDone || {},
+      levelDone: !!data.levelDone
     };
     const c = state.civ;
     if (c && c.water == null) {
@@ -1889,6 +2083,7 @@
       init_story();
       init_predict();
       init_util();
+      init_score();
       PLANETS_AT_START = 12;
     }
   });
@@ -5084,9 +5279,11 @@
       hudAge: $("hud-age"),
       hudTrust: $("hud-trust"),
       hudWorlds: $("hud-worlds"),
+      hudScore: $("hud-score"),
       hudWater: $("hud-water"),
       hudGrain: $("hud-grain"),
       advisory: $("advisory"),
+      objectives: $("objectives"),
       banner: $("banner"),
       log: $("log"),
       procStatus: $("proc-status"),
@@ -5244,10 +5441,26 @@
   function update4(state, nowMs) {
     updateHud(state);
     updateAdvisory(state);
+    updateObjectives(state);
     updateTutorial(state, nowMs);
     updateLog(state);
     updateBanner(nowMs);
     if (panelOpen) drawPanel(state, nowMs);
+  }
+  function updateObjectives(state) {
+    if (!el.objectives) return;
+    if (state.over) {
+      el.objectives.className = "";
+      return;
+    }
+    const prim = primaryObjective(state);
+    const now = nowStep(state);
+    let html = '<div class="obj-goal"><span class="obj-k">Goal</span>' + escapeHtml(prim.text) + "</div>";
+    if (now) {
+      html += '<div class="obj-now' + (now.danger ? " danger" : "") + '"><span class="obj-k">Now</span>' + now.text + "</div>";
+    }
+    el.objectives.innerHTML = html;
+    el.objectives.className = "show" + (now && now.danger ? " danger" : "");
   }
   function tipsSeen() {
     try {
@@ -5382,6 +5595,10 @@
     el.hudAge.innerHTML = '<span class="label">Era of</span>' + AGES[civ.ageIdx].name;
     el.hudTrust.innerHTML = '<span class="label">Trust</span>' + Math.round(civ.trust * 100) + "%";
     el.hudWorlds.innerHTML = '<span class="label">Worlds left</span>' + state.planetsLeft + " / 12";
+    if (el.hudScore) {
+      const lvl = state.level >= 0 && LEVELS[state.level];
+      el.hudScore.innerHTML = '<span class="label">' + (lvl ? "Lvl " + (state.level + 1) + " · Score" : "Score") + "</span>" + (state.score || 0).toLocaleString();
+    }
     const noCiv = !civ.alive || civ.dormant || state.over;
     el.btnDe.disabled = noCiv || civ.popH <= 0 || civ.order === "dehydrate";
     el.btnRe.disabled = noCiv || civ.popD <= 0 || civ.order === "rehydrate";
@@ -5496,11 +5713,22 @@
         case "ending":
           sting("fleet");
           render2.flash("150,255,190", 0.18);
+          app.recordResult(state.level, it.stats && it.stats.score || 0);
           overlayQueue.push({ type: "ending", ending: it.ending, stats: it.stats });
           break;
         case "silence":
           sting("death");
           overlayQueue.push({ type: "silence", text: it.text, stats: it.stats });
+          break;
+        case "objective":
+          pushBanner("✓ " + it.text, "good");
+          sting("germinate");
+          break;
+        case "level-complete":
+          app.recordResult(it.level, it.score);
+          sting("age");
+          render2.flash("150,255,190", 0.16);
+          overlayQueue.push({ type: "level-complete", item: it });
           break;
       }
     }
@@ -5533,6 +5761,7 @@
     else if (item.type === "planet-lost") renderSimple("THE WORLD IS LOST", item.text, "registrar", "Continue");
     else if (item.type === "ending") renderEnding(item, 0);
     else if (item.type === "silence") renderSilence(item);
+    else if (item.type === "level-complete") renderLevelComplete(item.item);
   }
   function closeOverlay() {
     cancelTyper();
@@ -5651,11 +5880,12 @@
         Civilizations destroyed: <b>${s.civsLost}</b> (last: No. ${s.lastCivNo})<br>
         Worlds consumed: <b>${s.planetsLost}</b><br>
         Calendars fulfilled / failed: <b>${s.proclaimOk} / ${s.proclaimBad}</b><br>
-        Highest age: <b>${s.maxAge}</b>
+        Highest age: <b>${s.maxAge}</b><br>
+        Final score: <b>${(s.score || 0).toLocaleString()}</b> — ${escapeHtml(s.title || "")} ${starStr(s.stars || 0)}
       </div>
       <div class="btnrow">
         <button id="end-watch">Keep watching the suns</button>
-        <button class="primary" id="end-new">New game</button>
+        <button class="primary" id="end-new">Title</button>
       </div>`);
     $("end-watch").onclick = () => {
       app.sandboxContinue();
@@ -5674,10 +5904,44 @@
       <div class="stats">
         Years beneath the three suns: <b>${s.years}</b> ·
         Civilizations: <b>${s.civsLost}</b> ·
-        Highest age: <b>${s.maxAge}</b>
+        Highest age: <b>${s.maxAge}</b> ·
+        Score: <b>${(s.score || 0).toLocaleString()}</b>
       </div>
       <div class="btnrow"><button class="primary" id="end-new">Begin again</button></div>`);
     $("end-new").onclick = () => {
+      closeOverlay();
+      app.showTitle();
+    };
+  }
+  function starStr(n) {
+    return "★".repeat(n) + "☆".repeat(Math.max(0, 3 - n));
+  }
+  function bestFor(level) {
+    const p = app.getProgress();
+    const id = (LEVELS[level] || {}).id;
+    return p.best && id && p.best[id] || 0;
+  }
+  function renderLevelComplete(item) {
+    const next = item.level + 1;
+    const hasNext = next < LEVELS.length;
+    dialogShell("notice-d", `
+      <h2>LEVEL ${item.level + 1} COMPLETE — ${escapeHtml(item.name)}</h2>
+      <div class="stars-big">${starStr(item.stars)}</div>
+      <div class="stats">
+        Score: <b>${item.score.toLocaleString()}</b> — ${escapeHtml(item.title)}<br>
+        Best for this level: <b>${bestFor(item.level).toLocaleString()}</b>
+        ${hasNext ? "<br>Unlocked: <b>Level " + (next + 1) + " · " + escapeHtml(LEVELS[next].name) + "</b>" : ""}
+      </div>
+      <div class="btnrow">
+        <button id="lc-stay">Keep playing</button>
+        ${hasNext ? '<button class="primary" id="lc-next">Next level</button>' : '<button class="primary" id="lc-title">Title</button>'}
+      </div>`);
+    if ($("lc-stay")) $("lc-stay").onclick = closeOverlay;
+    if ($("lc-next")) $("lc-next").onclick = () => {
+      closeOverlay();
+      app.startLevel(next);
+    };
+    if ($("lc-title")) $("lc-title").onclick = () => {
       closeOverlay();
       app.showTitle();
     };
@@ -5895,6 +6159,7 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
       init_charts();
       init_portraits();
       init_story();
+      init_score();
       init_app();
       init_renderer();
       $ = (id) => document.getElementById(id);
@@ -5959,13 +6224,62 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
   function resumeFromOverlay() {
     app.overlayPause = Math.max(0, app.overlayPause - 1);
   }
+  function startLevel(n) {
+    const lvl = LEVELS[n];
+    if (!lvl) return wildGame();
+    startWith(createGame(lvl.seed, { level: n }));
+  }
   function newGame() {
-    const seeds = SEEDS && SEEDS.length ? SEEDS : null;
-    const seed = seeds ? seeds[Math.floor(Math.random() * seeds.length)] : Math.random() * 4294967295 >>> 0;
-    startWith(createGame(seed));
+    startLevel(0);
   }
   function wildGame() {
-    startWith(createGame(Math.random() * 4294967295 >>> 0));
+    startWith(createGame(Math.random() * 4294967295 >>> 0, { level: -1 }));
+  }
+  function getProgress() {
+    try {
+      return JSON.parse(localStorage.getItem(PROGRESS_KEY) || "{}") || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function unlockedCount() {
+    return Math.max(0, getProgress().unlocked || 0);
+  }
+  function bestFor2(id) {
+    const p = getProgress();
+    return p.best && p.best[id] || 0;
+  }
+  function recordResult(level, score) {
+    if (level < 0 || level >= LEVELS.length) return;
+    const p = getProgress();
+    p.best = p.best || {};
+    const id = LEVELS[level].id;
+    if (score > (p.best[id] || 0)) p.best[id] = score;
+    p.unlocked = Math.min(LEVELS.length - 1, Math.max(p.unlocked || 0, level + 1));
+    if (score > (p.bestOverall || 0)) p.bestOverall = score;
+    try {
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify(p));
+    } catch (e) {
+    }
+  }
+  function buildLevelSelect() {
+    const host = document.getElementById("level-select");
+    if (!host) return;
+    const unlocked = unlockedCount();
+    let html = "";
+    for (let i = 0; i < LEVELS.length; i++) {
+      const lvl = LEVELS[i];
+      const locked = i > unlocked;
+      const best = bestFor2(lvl.id);
+      const r = rankFor(i, best);
+      const stars2 = best > 0 ? "★".repeat(r.stars) + "☆".repeat(3 - r.stars) : "";
+      html += '<button class="level-btn' + (locked ? " locked" : "") + '" data-lv="' + i + '"' + (locked ? " disabled" : "") + '><span class="lv-no">' + (locked ? "🔒" : i + 1) + '</span><span class="lv-name">' + lvl.name + '</span><span class="lv-stars">' + (locked ? "locked" : stars2 + (best > 0 ? "  " + best : "")) + "</span></button>";
+    }
+    host.innerHTML = html;
+    host.querySelectorAll(".level-btn").forEach((b) => {
+      if (b.classList.contains("locked")) return;
+      b.onclick = () => startLevel(+b.dataset.lv);
+    });
   }
   function continueGame() {
     try {
@@ -5997,6 +6311,7 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
     }
     app.state = null;
     refreshTitleButtons();
+    buildLevelSelect();
     document.getElementById("title").classList.remove("hidden");
     document.getElementById("hud").style.display = "none";
   }
@@ -6049,9 +6364,9 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
     render2.init(document.getElementById("world"));
     init3();
     document.getElementById("t-continue").onclick = continueGame;
-    document.getElementById("t-new").onclick = newGame;
     document.getElementById("t-wild").onclick = wildGame;
     refreshTitleButtons();
+    buildLevelSelect();
     document.getElementById("hud").style.display = "none";
     const hash = typeof location !== "undefined" && location.hash || "";
     if (hash.includes("autostart")) {
@@ -6076,7 +6391,7 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
     window.addEventListener("beforeunload", saveNow);
     requestAnimationFrame(frame2);
   }
-  var SAVE_KEY, SPEEDS, CHUNK, MAX_DAYS_PER_FRAME, app, lastMs, acc, saveTimer;
+  var SAVE_KEY, PROGRESS_KEY, SPEEDS, CHUNK, MAX_DAYS_PER_FRAME, app, lastMs, acc, saveTimer;
   var init_app = __esm({
     "src/app.ts"() {
       "use strict";
@@ -6085,9 +6400,11 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
       init_audio();
       init_ui();
       init_story();
+      init_score();
       init_renderer();
       init_seeds();
       SAVE_KEY = "threebody.save.v1";
+      PROGRESS_KEY = "threebody.progress.v1";
       SPEEDS = [0, 2, 10, 60, 365];
       CHUNK = 0.5;
       MAX_DAYS_PER_FRAME = 12;
@@ -6103,7 +6420,10 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
         wildGame,
         continueGame,
         sandboxContinue,
-        showTitle
+        showTitle,
+        startLevel,
+        recordResult,
+        getProgress
       };
       if (typeof window !== "undefined") window.TB = { app };
       lastMs = 0;
