@@ -141,14 +141,14 @@ function fmtRow(r) {
 function isGoodSeed(r, years) {
   if (r.sunEscapeYr != null && r.sunEscapeYr < 1200) return false;  // triple must survive
   if (r.firstPlanetLossYr != null && r.firstPlanetLossYr < 150) return false;
-  if (r.planetsLost > 3) return false;
-  if (r.stableFrac < 0.25 || r.stableFrac > 0.92) return false;     // hopeless or boring
-  if (r.nStable < 6) return false;                                   // eras must alternate
-  if (r.tMin > -40 || r.tMax < 60) return false;                     // the sky must bite
+  if (r.planetsLost > 4) return false;
+  if (r.stableFrac < 0.35 || r.stableFrac > 0.95) return false;     // mostly livable, but real chaos
+  if (r.nStable < 4 || r.nStable > 110) return false;                // eras alternate, but no flapping
+  if (r.tMin > -30 || r.tMax < 55) return false;                     // the sky must bite
   if (r.counts.syzygy > 20) return false;                            // syzygy spam
-  if (r.civsLost < 2 || r.civsLost > 30) return false;               // some rebirths, no spiral
+  if (r.civsLost < 1 || r.civsLost > 30) return false;               // some loss, no death spiral
   if (!r.won) return false;                                          // a fine bot player must win...
-  if (r.wonYear < 280 || r.wonYear > 1300) return false;             // ...but not trivially
+  if (r.wonYear < 220 || r.wonYear > 1300) return false;             // ...but not trivially
   return true;
 }
 

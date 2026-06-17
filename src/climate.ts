@@ -17,6 +17,14 @@ const PERT_STABLE = 0.12;   // perturbation ratio below ⇒ orderly orbit
 const PERT_BREAK = 0.22;    // above ⇒ orbit being torn up
 const STABLE_AFTER = 25;    // days of order before a Stable Era is declared
 const CHAOS_AFTER = 6;      // days of disorder before Chaos is declared
+// In the novel a Stable Era is the predictable AND livable time a civilization
+// can grow — so "orderly" requires not just a dominant sun but a survivable
+// sky. A stable-but-lethal orbit (e.g. a tight orbit around a hot sun) is a
+// Chaotic Era. Bands track civ.ts's hydrated survival range (−10…45 °C), with
+// hysteresis so the era doesn't flap at the edge.
+const LIVABLE_LO = -10, LIVABLE_HI = 45;   // °C — within ⇒ a Stable Era may be declared
+const LETHAL_LO = -18, LETHAL_HI = 52;     // °C — beyond ⇒ a Stable Era breaks (Chaotic)
+const LETHAL_AFTER = 14;    // days of persistent lethal sky before a Stable Era breaks
 const DISC_DIST = 2.2;      // AU — nearer than this, a sun shows a disc
 const FLY_DIST = 2.8;       // AU — farther than this, a sun is a "flying star"
 const ENGULF_DIST = 0.03;   // AU — the planet skims the photosphere
@@ -36,6 +44,8 @@ function createClimate() {
     eraStartDay: 0,           // game day the current era began
     orderDays: 0,             // consecutive days the orbit looked orderly
     disorderDays: 0,
+    livableDays: 0,           // consecutive days the sky was survivable
+    lethalDays: 0,            // consecutive days the sky was lethal
     // event latches / cooldowns (game-day timestamps)
     latch3fs: false,          // three flying stars currently showing
     latchTriDay: false,
@@ -73,17 +83,28 @@ function update(cl: Climate, obs: Observation, day, dtDays) {
   cl.tempC += (tTarget - cl.tempC) * U.relax(dtDays, tau);
 
   // ---- Era classification with hysteresis ----
+  // Orbit regularity (reacts fast) and sky livability (reacts slower) are
+  // tracked separately: a Stable Era needs BOTH a dominant sun AND a survivable
+  // sky for STABLE_AFTER days, and it breaks the moment the orbit is torn up —
+  // but only on PERSISTENT killing heat/cold, so it doesn't flicker on brief
+  // temperature spikes. (`|| 0` guards saves written before these counters.)
   const orderly = obs.primary >= 0 && obs.pert < PERT_STABLE;
   const disorderly = obs.primary < 0 || obs.pert > PERT_BREAK;
-  if (orderly) { cl.orderDays += dtDays; } else { cl.orderDays = 0; }
-  if (disorderly) { cl.disorderDays += dtDays; } else { cl.disorderDays = 0; }
+  const livable = cl.tempC > LIVABLE_LO && cl.tempC < LIVABLE_HI;
+  const lethal = cl.tempC < LETHAL_LO || cl.tempC > LETHAL_HI;
+  cl.orderDays = orderly ? (cl.orderDays || 0) + dtDays : 0;
+  cl.disorderDays = disorderly ? (cl.disorderDays || 0) + dtDays : 0;
+  cl.livableDays = livable ? (cl.livableDays || 0) + dtDays : 0;
+  cl.lethalDays = lethal ? (cl.lethalDays || 0) + dtDays : 0;
 
-  if (cl.eraType === 'chaotic' && cl.orderDays >= STABLE_AFTER) {
+  if (cl.eraType === 'chaotic' &&
+      cl.orderDays >= STABLE_AFTER && cl.livableDays >= STABLE_AFTER) {
     cl.eraType = 'stable';
     cl.stableEraNo += 1;
     cl.eraStartDay = day;
     events.push({ type: 'era', era: 'stable', no: cl.stableEraNo });
-  } else if (cl.eraType === 'stable' && cl.disorderDays >= CHAOS_AFTER) {
+  } else if (cl.eraType === 'stable' &&
+      (cl.disorderDays >= CHAOS_AFTER || cl.lethalDays >= LETHAL_AFTER)) {
     cl.eraType = 'chaotic';
     cl.chaoticEraNo += 1;
     cl.eraStartDay = day;
