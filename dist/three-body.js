@@ -484,6 +484,10 @@
       orderDays: 0,
       // consecutive days the orbit looked orderly
       disorderDays: 0,
+      livableDays: 0,
+      // consecutive days the sky was survivable
+      lethalDays: 0,
+      // consecutive days the sky was lethal
       // event latches / cooldowns (game-day timestamps)
       latch3fs: false,
       // three flying stars currently showing
@@ -509,22 +513,18 @@
     cl.tempC += (tTarget - cl.tempC) * relax(dtDays, tau);
     const orderly = obs.primary >= 0 && obs.pert < PERT_STABLE;
     const disorderly = obs.primary < 0 || obs.pert > PERT_BREAK;
-    if (orderly) {
-      cl.orderDays += dtDays;
-    } else {
-      cl.orderDays = 0;
-    }
-    if (disorderly) {
-      cl.disorderDays += dtDays;
-    } else {
-      cl.disorderDays = 0;
-    }
-    if (cl.eraType === "chaotic" && cl.orderDays >= STABLE_AFTER) {
+    const livable = cl.tempC > LIVABLE_LO && cl.tempC < LIVABLE_HI;
+    const lethal = cl.tempC < LETHAL_LO || cl.tempC > LETHAL_HI;
+    cl.orderDays = orderly ? (cl.orderDays || 0) + dtDays : 0;
+    cl.disorderDays = disorderly ? (cl.disorderDays || 0) + dtDays : 0;
+    cl.livableDays = livable ? (cl.livableDays || 0) + dtDays : 0;
+    cl.lethalDays = lethal ? (cl.lethalDays || 0) + dtDays : 0;
+    if (cl.eraType === "chaotic" && cl.orderDays >= STABLE_AFTER && cl.livableDays >= STABLE_AFTER) {
       cl.eraType = "stable";
       cl.stableEraNo += 1;
       cl.eraStartDay = day;
       events.push({ type: "era", era: "stable", no: cl.stableEraNo });
-    } else if (cl.eraType === "stable" && cl.disorderDays >= CHAOS_AFTER) {
+    } else if (cl.eraType === "stable" && (cl.disorderDays >= CHAOS_AFTER || cl.lethalDays >= LETHAL_AFTER)) {
       cl.eraType = "chaotic";
       cl.chaoticEraNo += 1;
       cl.eraStartDay = day;
@@ -589,7 +589,7 @@
   function eraLabel(cl) {
     return cl.eraType === "stable" ? "Stable Era No. " + cl.stableEraNo : "Chaotic Era No. " + cl.chaoticEraNo;
   }
-  var CAL_T, T_FLOOR, TAU_WARM, TAU_COOL, PERT_STABLE, PERT_BREAK, STABLE_AFTER, CHAOS_AFTER, DISC_DIST, FLY_DIST, ENGULF_DIST, SYZ_SPREAD, SYZ_MINOR, SYZ_MAJOR, SYZ_RIP, consts;
+  var CAL_T, T_FLOOR, TAU_WARM, TAU_COOL, PERT_STABLE, PERT_BREAK, STABLE_AFTER, CHAOS_AFTER, LIVABLE_LO, LIVABLE_HI, LETHAL_LO, LETHAL_HI, LETHAL_AFTER, DISC_DIST, FLY_DIST, ENGULF_DIST, SYZ_SPREAD, SYZ_MINOR, SYZ_MAJOR, SYZ_RIP, consts;
   var init_climate = __esm({
     "src/climate.ts"() {
       "use strict";
@@ -602,6 +602,11 @@
       PERT_BREAK = 0.22;
       STABLE_AFTER = 25;
       CHAOS_AFTER = 6;
+      LIVABLE_LO = -10;
+      LIVABLE_HI = 45;
+      LETHAL_LO = -18;
+      LETHAL_HI = 52;
+      LETHAL_AFTER = 14;
       DISC_DIST = 2.2;
       FLY_DIST = 2.8;
       ENGULF_DIST = 0.03;
@@ -5918,23 +5923,7 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
   var init_seeds = __esm({
     "src/seeds.ts"() {
       "use strict";
-      SEEDS = [
-        4077,
-        9028,
-        9203,
-        2091,
-        4154,
-        5133,
-        6021,
-        6266,
-        8238,
-        8189,
-        7252,
-        8252,
-        5077,
-        6112,
-        8266
-      ];
+      SEEDS = [4077, 9028, 9203, 4154, 5133, 6021, 8238, 8189, 5077];
     }
   });
 
