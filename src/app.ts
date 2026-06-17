@@ -92,6 +92,7 @@ import type { App } from './types';
       const stars = best > 0 ? '★'.repeat(r.stars) + '☆'.repeat(3 - r.stars) : '';
       html += '<button class="level-btn' + (locked ? ' locked' : '') + '" data-lv="' + i + '"' +
         (locked ? ' disabled' : '') + '>' +
+        (locked ? '' : '<img class="lv-thumb" src="docs/media/levels/l' + (i + 1) + '.jpg" alt="" onerror="this.remove()">') +
         '<span class="lv-no">' + (locked ? '🔒' : (i + 1)) + '</span>' +
         '<span class="lv-name">' + lvl.name + '</span>' +
         '<span class="lv-stars">' + (locked ? 'locked' : (stars + (best > 0 ? '  ' + best : ''))) + '</span>' +

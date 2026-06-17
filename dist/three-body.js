@@ -1191,6 +1191,17 @@
           ]
         },
         {
+          id: "almanac",
+          age: 5,
+          unlock: null,
+          title: "The Almanac",
+          pages: [
+            { speaker: "Friar Bacon", glyph: "✚", text: "I am a friar; I ought to pray for the sun's return. Instead I have spent thirty years tabulating it — every rising, every freeze — into a great Almanac of brass and vellum." },
+            { speaker: "Friar Bacon", glyph: "✚", text: "Mozi gave us a wheel of the heavens; I give you a TABLE of them. Look up the day, read the sky. While the heavens repeat, the Almanac is a lamp held against the dark." },
+            { speaker: "SYSTEM", glyph: "三", text: "But a table only remembers — it cannot foresee a sky that has never repeated. Trust the Almanac through a Stable Era; close it the moment the suns forget their order." }
+          ]
+        },
+        {
           id: "copernicus",
           age: 6,
           unlock: "orbit",
@@ -1413,14 +1424,15 @@
   });
 
   // src/score.ts
-  function ageGoal(target, name, id, nm, seed, stars2) {
+  function ageGoal(target, name, id, nm, seed, stars2, figure) {
     return {
       id,
       name: nm,
       seed,
       goalText: "Advance your civilization to the " + name + ".",
       done: (s) => s.stats.maxAge >= target,
-      stars: stars2
+      stars: stars2,
+      figure
     };
   }
   function levelOf(state) {
@@ -1543,19 +1555,68 @@
       };
       START_AGE = 3;
       LEVELS = [
-        ageGoal(4, "Imperial Level", "l1", "First Light", 6021, [1500, 3e3, 5e3]),
-        ageGoal(5, "Medieval Level", "l2", "The Long Watch", 4014, [3e3, 6e3, 1e4]),
-        ageGoal(6, "Renaissance Level", "l3", "The Three Suns", 8021, [6e3, 11e3, 18e3]),
-        ageGoal(8, "Industrial Revolution", "l4", "The Human Computer", 4238, [12e3, 2e4, 3e4]),
-        ageGoal(10, "Atomic Age", "l5", "Deep Time", 5063, [2e4, 32e3, 46e3]),
-        ageGoal(11, "Information Age", "l6", "The Goal Has Changed", 7014, [3e4, 45e3, 62e3]),
+        ageGoal(
+          4,
+          "Imperial Level",
+          "l1",
+          "Mozi's Machine",
+          6021,
+          [1500, 3e3, 5e3],
+          { name: "Mozi", glyph: "墨", line: "You kept them alive to the age of measurement. Take my celestial sphere — but trust it only while the sky keeps its track." }
+        ),
+        ageGoal(
+          5,
+          "Medieval Level",
+          "l2",
+          "The Almanac",
+          4014,
+          [3e3, 6e3, 1e4],
+          { name: "Friar Bacon", glyph: "✚", line: "Your people have an Almanac of the sun now. Read it in the calm — and shut it the moment the suns run wild." }
+        ),
+        ageGoal(
+          6,
+          "Renaissance Level",
+          "l3",
+          "The Three Suns",
+          8021,
+          [6e3, 11e3, 18e3],
+          { name: "Copernicus", glyph: "☉", line: "You have seen what no Trisolaran eye has seen: three suns, and no solution. The Second Level is yours." }
+        ),
+        ageGoal(
+          8,
+          "Industrial Revolution",
+          "l4",
+          "The Human Computer",
+          4238,
+          [12e3, 2e4, 3e4],
+          { name: "Von Neumann", glyph: "⚙", line: "Thirty million flags rose at your command and computed the heavens. Calculation has a dynasty now." }
+        ),
+        ageGoal(
+          10,
+          "Atomic Age",
+          "l5",
+          "The Pendulum",
+          5063,
+          [2e4, 32e3, 46e3],
+          { name: "Einstein", glyph: "𝑒", line: "Finer instruments, longer sight — and still the fan opens. Prediction has a horizon, and now you know it." }
+        ),
+        ageGoal(
+          11,
+          "Information Age",
+          "l6",
+          "The Goal Has Changed",
+          7014,
+          [3e4, 45e3, 62e3],
+          { name: "The Announcement", glyph: "三", line: "There is nothing left to predict. There is only somewhere to go. Build the fleet." }
+        ),
         {
           id: "l7",
           name: "Escape",
           seed: 6035,
           goalText: "Reach the Space Age and launch the 1,000-ship Trisolaran Fleet.",
           done: (s) => !!s.won,
-          stars: [45e3, 65e3, 9e4]
+          stars: [45e3, 65e3, 9e4],
+          figure: { name: "The Administrator", glyph: "◉", line: "You went as far as anyone. Now leave the game, and decide whose side the sky is on." }
         }
       ];
       TITLES = ["Survivor", "Steward of Trisolaris", "Calendar-Keeper", "Master of the Three Suns"];
@@ -5825,6 +5886,7 @@
     const p = beat.pages[page];
     const last = page === beat.pages.length - 1;
     dialogShell("", `
+      ${beat.id ? art("docs/media/beats/" + beat.id + ".jpg", "beat-art") : ""}
       <h2>${escapeHtml(beat.title)}</h2>
       <div class="speaker">
         ${portraitHtml(p.speaker)}
@@ -5874,6 +5936,7 @@
     }
     const s = item.stats;
     dialogShell("ending-d", `
+      ${art("docs/media/end/fleet.jpg", "end-art")}
       <h2>YOU HAVE UNDERSTOOD TRISOLARIS</h2>
       <div class="stats">
         Years beneath the three suns: <b>${s.years}</b><br>
@@ -5899,6 +5962,7 @@
   function renderSilence(item) {
     const s = item.stats;
     dialogShell("registrar", `
+      ${art("docs/media/end/silence.jpg", "end-art")}
       <h2>${escapeHtml(SILENCE.title)}</h2>
       <div class="text">${escapeHtml(item.text)}</div>
       <div class="stats">
@@ -5913,6 +5977,9 @@
       app.showTitle();
     };
   }
+  function art(src, cls) {
+    return '<img class="' + cls + '" src="' + src + '" alt="" onerror="this.remove()">';
+  }
   function starStr(n) {
     return "★".repeat(n) + "☆".repeat(Math.max(0, 3 - n));
   }
@@ -5924,9 +5991,12 @@
   function renderLevelComplete(item) {
     const next = item.level + 1;
     const hasNext = next < LEVELS.length;
+    const fig = (LEVELS[item.level] || {}).figure;
     dialogShell("notice-d", `
+      ${art("docs/media/levels/l" + (item.level + 1) + ".jpg", "lc-art")}
       <h2>LEVEL ${item.level + 1} COMPLETE — ${escapeHtml(item.name)}</h2>
       <div class="stars-big">${starStr(item.stars)}</div>
+      ${fig ? '<div class="speaker"><div class="glyph">' + fig.glyph + '</div><div class="who">' + escapeHtml(fig.name) + '</div></div><div class="text lc-line">' + escapeHtml(fig.line) + "</div>" : ""}
       <div class="stats">
         Score: <b>${item.score.toLocaleString()}</b> — ${escapeHtml(item.title)}<br>
         Best for this level: <b>${bestFor(item.level).toLocaleString()}</b>
@@ -6273,7 +6343,7 @@ KEYS — Space pause · 1–4 speed · D/R/X orders · All/¾/½/⅓ order size 
       const best = bestFor2(lvl.id);
       const r = rankFor(i, best);
       const stars2 = best > 0 ? "★".repeat(r.stars) + "☆".repeat(3 - r.stars) : "";
-      html += '<button class="level-btn' + (locked ? " locked" : "") + '" data-lv="' + i + '"' + (locked ? " disabled" : "") + '><span class="lv-no">' + (locked ? "🔒" : i + 1) + '</span><span class="lv-name">' + lvl.name + '</span><span class="lv-stars">' + (locked ? "locked" : stars2 + (best > 0 ? "  " + best : "")) + "</span></button>";
+      html += '<button class="level-btn' + (locked ? " locked" : "") + '" data-lv="' + i + '"' + (locked ? " disabled" : "") + ">" + (locked ? "" : '<img class="lv-thumb" src="docs/media/levels/l' + (i + 1) + '.jpg" alt="" onerror="this.remove()">') + '<span class="lv-no">' + (locked ? "🔒" : i + 1) + '</span><span class="lv-name">' + lvl.name + '</span><span class="lv-stars">' + (locked ? "locked" : stars2 + (best > 0 ? "  " + best : "")) + "</span></button>";
     }
     host.innerHTML = html;
     host.querySelectorAll(".level-btn").forEach((b) => {

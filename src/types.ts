@@ -123,6 +123,8 @@ export interface Level {
   /** True once this level's goal is met for the given state. */
   done(state: GameState): boolean;
   stars: [number, number, number];  // score thresholds for ★ / ★★ / ★★★
+  /** The book figure whose chapter this level is — speaks on completion. */
+  figure?: { name: string; glyph: string; line: string };
 }
 
 /** A live objective shown in the Objectives panel. */
